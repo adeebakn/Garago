@@ -50,7 +50,7 @@ The API requires these settings:
 
 | Variable | Purpose | Local default/example |
 | --- | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection string | `postgres://autoerp:autoerp@localhost:5432/autoerp` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://garago:garago@localhost:5432/garago` |
 | `JWT_SECRET` | Session signing key (at least 32 characters) | Replace the example value |
 | `JWT_EXPIRY_HOURS` | Session lifetime | `24` |
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
@@ -72,7 +72,7 @@ Get-ChildItem .\migrations\*.sql |
   Sort-Object Name |
   ForEach-Object {
     Get-Content $_.FullName -Raw |
-      docker compose exec -T postgres psql -U autoerp -d autoerp -v ON_ERROR_STOP=1
+      docker compose exec -T postgres psql -U garago -d garago -v ON_ERROR_STOP=1
   }
 ```
 
@@ -81,7 +81,7 @@ Migrations are not run automatically by the application.
 ### 4. Run the API
 
 ```powershell
-go run .
+go run ./cmd/api
 ```
 
 The API is available at `http://localhost:8080/api`. Verify it with `GET /api/health`.
@@ -172,7 +172,7 @@ Authentication uses the HTTP-only `garago_session` cookie, so browser requests m
 
 ```text
 Garago/
-├── db/sqlc/              # Generated SQLC data-access code
+├── cmd/api/              # Production API executable
 ├── frontend/             # React/Vite application
 │   └── src/
 │       ├── auth/         # Authentication screens and state
@@ -181,17 +181,20 @@ Garago/
 │       ├── organization/ # Organization state and provider
 │       ├── ui/           # Shared interaction state such as confirmation dialogs
 │       └── utils/        # Shared API-error and pagination utilities
-├── internal/app/         # Backend application, HTTP handlers, and domain models
-│   ├── app.go            # Dependency startup, middleware, and route registration
-│   ├── auth.go           # Authentication and session handling
-│   ├── database.go       # PostgreSQL pool initialization
-│   ├── mailer.go         # Password-reset email delivery
-│   ├── http_helpers.go   # Shared HTTP validation and error responses
-│   ├── *_handler.go      # Feature-focused HTTP handlers
-│   └── *.go              # Request models and application rules
+├── internal/
+│   ├── config/           # Environment loading and startup validation
+│   ├── apis/             # HTTP server, routing, middleware, and feature handlers
+│   │   ├── server.go     # Dependency lifecycle and route registration
+│   │   ├── auth.go       # Authentication and session endpoints
+│   │   ├── *_handler.go  # One handler module per business capability
+│   │   ├── *_types.go    # Transport request/response types by capability
+│   │   └── http_helpers.go
+│   ├── database/         # PostgreSQL connection lifecycle
+│   │   └── postgres/     # Generated PostgreSQL query code
+│   └── platform/
+│       └── mailer/       # SMTP password-reset delivery
 ├── migrations/           # Ordered PostgreSQL migrations
 ├── queries/              # SQLC query definitions
-├── main.go               # Thin executable entry point
 ├── docker-compose.yml    # PostgreSQL and Redis services
 ├── sqlc.yaml
 └── go.mod

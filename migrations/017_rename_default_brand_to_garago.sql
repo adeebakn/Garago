@@ -1,3 +1,3 @@
 UPDATE organization_settings
 SET name = 'Garago'
-WHERE name = 'AutoERP';
+WHERE id = 1 AND BTRIM(name) = '';

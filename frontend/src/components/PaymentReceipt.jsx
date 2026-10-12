@@ -19,7 +19,7 @@ export default function PaymentReceipt({ payment, paid, balance, onClose }) {
     const line = [220, 232, 228];
     const left = 14; const right = 134;
     pdf.setFillColor(...teal); pdf.rect(0, 0, 148, 32, "F");
-    pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(17); pdf.text(organization.name || "AutoERP", left, 15);
+    pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(17); pdf.text(organization.name || "Garago", left, 15);
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.text("PAYMENT RECEIPT", left, 22);
     if (contact) { pdf.setFontSize(7.5); pdf.text(pdf.splitTextToSize(contact, 118), left, 28); }
     pdf.setTextColor(...ink); pdf.setFont("helvetica", "bold"); pdf.setFontSize(16); pdf.text("Payment received", left, 46);
@@ -43,7 +43,7 @@ export default function PaymentReceipt({ payment, paid, balance, onClose }) {
         <article className="receipt-document">
           <header className="receipt-brand">
             <span className="receipt-mark">{(organization.name || "A").charAt(0).toUpperCase()}</span>
-            <div><strong>{organization.name || "AutoERP"}</strong><span>{contact || "Payment receipt"}</span></div>
+            <div><strong>{organization.name || "Garago"}</strong><span>{contact || "Payment receipt"}</span></div>
           </header>
           <div className="receipt-title"><div><p>PAYMENT RECEIPT</p><h1>Payment received</h1></div></div>
           <table className="receipt-table" aria-label="Payment details"><tbody>

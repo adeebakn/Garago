@@ -15,7 +15,7 @@ export default function FormDrawer({ open, title, onClose, children, backdropCla
   return createPortal(
     <div className={`form-drawer-backdrop ${backdropClassName}`.trim()} role="presentation" onMouseDown={onClose}>
       <aside className={`form-drawer ${drawerClassName}`.trim()} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
-        <header className="form-drawer-header"><div><p>{organization.name || "AutoERP"}</p><h2>{title}</h2></div><button type="button" className="form-drawer-close" onClick={onClose} aria-label="Close form">×</button></header>
+        <header className="form-drawer-header"><div><p>{organization.name || "Garago"}</p><h2>{title}</h2></div><button type="button" className="form-drawer-close" onClick={onClose} aria-label="Close form">×</button></header>
         <div className="form-drawer-body">{children}</div>
       </aside>
     </div>,

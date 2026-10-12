@@ -15,7 +15,7 @@ export default function QuotationPreview({ quotation, items, customer, vehicle, 
     const teal = [8, 125, 112]; const ink = [23, 51, 45]; const muted = [92, 112, 106]; const line = [220, 232, 228];
     const left = 18; const right = 192;
     pdf.setFillColor(...teal); pdf.rect(0, 0, 210, 34, "F");
-    pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(18); pdf.text(organization.name || "AutoERP", left, 16);
+    pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(18); pdf.text(organization.name || "Garago", left, 16);
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.text(documentTitle.toUpperCase(), left, 23);
     if (contact) { pdf.setFontSize(7.5); pdf.text(pdf.splitTextToSize(contact, 165), left, 29); }
     pdf.setTextColor(...ink); pdf.setFont("helvetica", "bold"); pdf.setFontSize(18); pdf.text(documentTitle, left, 50);

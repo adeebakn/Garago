@@ -1,11 +1,11 @@
 services:
   postgres:
     image: postgres:17
-    container_name: autoerp-postgres
+    container_name: garago-postgres
     environment:
-      POSTGRES_USER: autoerp
-      POSTGRES_PASSWORD: autoerp
-      POSTGRES_DB: autoerp
+      POSTGRES_USER: garago
+      POSTGRES_PASSWORD: garago
+      POSTGRES_DB: garago
     ports:
       - "5432:5432"
     volumes:
@@ -13,7 +13,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: autoerp-redis
+    container_name: garago-redis
     ports:
       - "6379:6379"
     volumes:
