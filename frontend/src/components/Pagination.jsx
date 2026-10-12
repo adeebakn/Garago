@@ -1,5 +1,3 @@
-export const pageRows = (items, page, pageSize = 10) => items.slice((page - 1) * pageSize, page * pageSize);
-
 export default function Pagination({ page, totalItems, pageSize = 10, onPageChange }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   if (totalItems <= pageSize) return null;

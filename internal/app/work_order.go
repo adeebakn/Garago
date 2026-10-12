@@ -1,4 +1,4 @@
-package main
+package app
 
 type CreateWorkOrderRequest struct {
 	QuotationID int    `json:"quotation_id"`

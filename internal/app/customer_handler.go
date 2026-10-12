@@ -1,9 +1,8 @@
-package main
+package app
 
 import (
-	"fmt"
 	"net/http"
-	"strconv"
+	"strings"
 
 	db "garago/db/sqlc"
 	"github.com/gin-gonic/gin"
@@ -15,9 +14,14 @@ func createCustomer(c *gin.Context, queries *db.Queries) {
 
 	//Read JSON from the request
 	if err := c.ShouldBindJSON(&customer); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid Customer Data",
-		})
+		apiError(c, http.StatusBadRequest, "Invalid customer data")
+		return
+	}
+	customer.Name = strings.TrimSpace(customer.Name)
+	customer.Phone = strings.TrimSpace(customer.Phone)
+	customer.Email = strings.ToLower(strings.TrimSpace(customer.Email))
+	if customer.Name == "" || customer.Phone == "" {
+		apiError(c, http.StatusBadRequest, "Customer name and phone are required")
 		return
 	}
 
@@ -36,9 +40,7 @@ func createCustomer(c *gin.Context, queries *db.Queries) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create customer",
-		})
+		apiError(c, http.StatusInternalServerError, "Failed to create customer")
 		return
 	}
 
@@ -53,8 +55,7 @@ func getCustomers(c *gin.Context, queries *db.Queries) {
 	customers, err := queries.ListCustomers(c)
 	//customers, err := queries.ListCustomers(c)
 	if err != nil {
-		fmt.Println("ListCustomers error:", err)
-		c.JSON(500, gin.H{"error": err.Error()})
+		apiError(c, http.StatusInternalServerError, "Failed to get customers")
 		return
 	}
 
@@ -65,16 +66,12 @@ func getCustomers(c *gin.Context, queries *db.Queries) {
 
 func getCustomerByID(c *gin.Context, queries *db.Queries) {
 
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Customer not found",
-		})
+	id, ok := pathID(c, "customer")
+	if !ok {
 		return
 	}
 
-	customer, err := queries.GetCustomer(c, int32(id))
+	customer, err := queries.GetCustomer(c, id)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -90,12 +87,8 @@ func getCustomerByID(c *gin.Context, queries *db.Queries) {
 
 func updateCustomerByID(c *gin.Context, queries *db.Queries) {
 
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Customer not found",
-		})
+	id, ok := pathID(c, "customer")
+	if !ok {
 		return
 	}
 
@@ -105,6 +98,13 @@ func updateCustomerByID(c *gin.Context, queries *db.Queries) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid customer data",
 		})
+		return
+	}
+	customer.Name = strings.TrimSpace(customer.Name)
+	customer.Phone = strings.TrimSpace(customer.Phone)
+	customer.Email = strings.ToLower(strings.TrimSpace(customer.Email))
+	if customer.Name == "" || customer.Phone == "" {
+		apiError(c, http.StatusBadRequest, "Customer name and phone are required")
 		return
 	}
 
@@ -117,7 +117,7 @@ func updateCustomerByID(c *gin.Context, queries *db.Queries) {
 				String: customer.Email,
 				Valid:  customer.Email != "",
 			},
-			ID: int32(id),
+			ID: id,
 		},
 	)
 
@@ -136,19 +136,15 @@ func updateCustomerByID(c *gin.Context, queries *db.Queries) {
 
 func deleteCustomerByID(c *gin.Context, queries *db.Queries) {
 
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid customer ID",
-		})
+	id, ok := pathID(c, "customer")
+	if !ok {
 		return
 	}
 
-	err = queries.DeleteCustomer(c, int32(id))
+	err := queries.DeleteCustomer(c, id)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		apiError(c, http.StatusInternalServerError, "Failed to delete customer")
 		return
 	}
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
+import { useConfirm } from "../ui/confirm-context";
 import FormDrawer from "./FormDrawer";
 import SearchInput from "./SearchInput";
 import SearchableSelect from "./SearchableSelect";
@@ -9,7 +10,7 @@ export default function Invoices() {
   const [orders, setOrders] = useState([]), [invoices, setInvoices] = useState([]), [payments, setPayments] = useState([]), [customers, setCustomers] = useState([]), [vehicles, setVehicles] = useState([]), [workOrderId, setWorkOrderId] = useState(""), [open, setOpen] = useState(false), [error, setError] = useState(""), [search, setSearch] = useState("");
   const confirm = useConfirm();
   const load = async () => { try { const [o, i, p, c, v] = await Promise.all([api.get("/work-orders"), api.get("/invoices"), api.get("/payments"), api.get("/customers"), api.get("/vehicles")]); setOrders(o.data || []); setInvoices(i.data || []); setPayments(p.data || []); setCustomers(c.data || []); setVehicles(v.data || []); } catch { setError("Could not load invoices."); } };
-  useEffect(() => { load(); }, []);
+  useInitialLoad(load);
   const close = () => { setOpen(false); setWorkOrderId(""); setError(""); };
   const create = async (event) => { event.preventDefault(); try { await api.post("/invoices", { work_order_id: Number(workOrderId) }); await load(); close(); } catch (err) { setError(err.response?.data?.error || "Could not create invoice."); } };
   const existing = new Set(invoices.map((invoice) => String(invoice.WorkOrderID)));

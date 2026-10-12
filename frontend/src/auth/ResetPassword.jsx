@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api";
+import { apiErrorMessage } from "../utils/api-error";
 import "./auth.css";
 
 export default function ResetPassword() {
@@ -22,7 +23,7 @@ export default function ResetPassword() {
       await api.post("/auth/reset-password", { token, password });
       navigate("/login", { replace: true, state: { reset: true } });
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "Unable to reset password. Please try again.");
+      setError(apiErrorMessage(requestError, "Unable to reset password. Please try again."));
     } finally {
       setSubmitting(false);
     }

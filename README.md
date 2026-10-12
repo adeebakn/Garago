@@ -56,6 +56,7 @@ The API requires these settings:
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
 | `COOKIE_SECURE` | Send the session cookie over HTTPS only | `false` for local development |
 | `FRONTEND_URL` | Allowed CORS origin and password-reset URL base | `http://localhost:5173` |
+| `SERVER_ADDRESS` | API listen address | `:8080` |
 | `SMTP_HOST`, `SMTP_PORT` | SMTP server | `smtp.gmail.com`, `587` |
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | SMTP credentials | Use an app password where required |
 | `SMTP_FROM`, `SMTP_FROM_NAME` | Sender address and display name | Your sender address, `Garago` |
@@ -164,13 +165,22 @@ Garago/
 ├── frontend/             # React/Vite application
 │   └── src/
 │       ├── auth/         # Authentication screens and state
-│       └── components/   # Dashboard and business modules
+│       ├── components/   # Lazy-loaded dashboard and business modules
+│       ├── hooks/        # Reusable lifecycle hooks
+│       ├── organization/ # Organization state and provider
+│       ├── ui/           # Shared interaction state such as confirmation dialogs
+│       └── utils/        # Shared API-error and pagination utilities
+├── internal/app/         # Backend application, HTTP handlers, and domain models
+│   ├── app.go            # Dependency startup, middleware, and route registration
+│   ├── auth.go           # Authentication and session handling
+│   ├── database.go       # PostgreSQL pool initialization
+│   ├── mailer.go         # Password-reset email delivery
+│   ├── http_helpers.go   # Shared HTTP validation and error responses
+│   ├── *_handler.go      # Feature-focused HTTP handlers
+│   └── *.go              # Request models and application rules
 ├── migrations/           # Ordered PostgreSQL migrations
 ├── queries/              # SQLC query definitions
-├── *_handler.go          # HTTP handlers
-├── auth.go               # Authentication and session handling
-├── mailer.go             # Password-reset email delivery
-├── main.go               # API routes and application startup
+├── main.go               # Thin executable entry point
 ├── docker-compose.yml    # PostgreSQL and Redis services
 ├── sqlc.yaml
 └── go.mod

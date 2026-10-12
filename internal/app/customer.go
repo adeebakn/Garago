@@ -1,4 +1,4 @@
-package main
+package app
 
 type Customer struct {
 	ID    int    `json:"id"`

@@ -1,28 +1,31 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./components/Dashboard";
-import Customers from "./components/Customers";
-import Vehicles from "./components/Vehicles";
-import Services from "./components/Services";
-import Quotations from "./components/Quotations";
-import WorkOrders from "./components/Work_Orders";
-import Invoices from "./components/Invoices";
-import Payments from "./components/Payments";
-import { AuthProvider, useAuth } from "./auth/AuthContext";
-import Login from "./auth/Login";
-import Signup from "./auth/Signup";
-import ForgotPassword from "./auth/ForgotPassword";
-import ResetPassword from "./auth/ResetPassword";
+import { AuthProvider } from "./auth/AuthContext";
+import { useAuth } from "./auth/auth-context";
 import { ConfirmProvider } from "./ui/ConfirmContext";
 import { OrganizationProvider } from "./organization/OrganizationContext";
-import OrganizationSettings from "./components/OrganizationSettings";
+
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const Customers = lazy(() => import("./components/Customers"));
+const Vehicles = lazy(() => import("./components/Vehicles"));
+const Services = lazy(() => import("./components/Services"));
+const Quotations = lazy(() => import("./components/Quotations"));
+const WorkOrders = lazy(() => import("./components/Work_Orders"));
+const Invoices = lazy(() => import("./components/Invoices"));
+const Payments = lazy(() => import("./components/Payments"));
+const OrganizationSettings = lazy(() => import("./components/OrganizationSettings"));
+const Login = lazy(() => import("./auth/Login"));
+const Signup = lazy(() => import("./auth/Signup"));
+const ForgotPassword = lazy(() => import("./auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./auth/ResetPassword"));
 
 
 function AppRoutes() {
   const { user, loading } = useAuth();
   if (loading) return <main className="auth-page">Checking your session…</main>;
-  if (!user) return <Routes><Route path="/login" element={<Login />} /><Route path="/signup" element={<Signup />} /><Route path="/forgot-password" element={<ForgotPassword />} /><Route path="/reset-password" element={<ResetPassword />} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes>;
+  if (!user) return <Suspense fallback={<main className="auth-page">Loading…</main>}><Routes><Route path="/login" element={<Login />} /><Route path="/signup" element={<Signup />} /><Route path="/forgot-password" element={<ForgotPassword />} /><Route path="/reset-password" element={<ResetPassword />} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></Suspense>;
   return (
       <div className="app">
         <Header />
@@ -32,7 +35,7 @@ function AppRoutes() {
 
           <main className="content">
             <div className="page-transition">
-            <Routes>
+            <Suspense fallback={<p>Loading module…</p>}><Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/vehicles" element={<Vehicles />} />
@@ -42,7 +45,7 @@ function AppRoutes() {
               <Route path="/invoices" element={<Invoices />} />
               <Route path="/payments" element={<Payments />} />
               <Route path="/settings" element={<OrganizationSettings />} />
-            </Routes>
+            </Routes></Suspense>
             </div>
           </main>
         </div>

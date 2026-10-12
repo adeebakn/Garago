@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import FormDrawer from "./FormDrawer";
-import { useOrganization } from "../organization/OrganizationContext";
+import { useOrganization } from "../organization/organization-context";
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 

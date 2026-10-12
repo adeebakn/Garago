@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
+import { useConfirm } from "../ui/confirm-context";
 import SearchableSelect from "./SearchableSelect";
 import FormDrawer from "./FormDrawer";
 import QuotationPreview from "./QuotationPreview";
@@ -43,7 +44,7 @@ function Quotations() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useInitialLoad(load);
 
   const close = () => {
     setOpen(false);

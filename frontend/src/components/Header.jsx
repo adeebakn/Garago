@@ -1,6 +1,6 @@
 import "./Header.css";
 import api from "../api";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/auth-context";
 
 
 function Header() {

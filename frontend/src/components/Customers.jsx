@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
+import { useConfirm } from "../ui/confirm-context";
 import Pagination from "./Pagination";
 import SearchInput from "./SearchInput";
 import FormDrawer from "./FormDrawer";
@@ -36,7 +37,7 @@ function Customers() {
     }
   };
 
-  useEffect(() => { loadCustomers(); }, []);
+  useInitialLoad(loadCustomers);
 
   const closeForm = () => {
     setFormOpen(false);

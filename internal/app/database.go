@@ -1,13 +1,11 @@
-package main
+package app
 
 import (
 	"context"
-	"os"
 
 	db "garago/db/sqlc"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 // databasePool provides independent connections for concurrent API requests.
@@ -15,18 +13,14 @@ import (
 // the same time (which caused the previous "conn busy" error).
 var databasePool *pgxpool.Pool
 
-func connectDB() (*db.Queries, *pgxpool.Pool, error) {
-
-	godotenv.Load()
-
-	databaseURL := os.Getenv("DATABASE_URL")
-
-	pool, err := pgxpool.New(
-		context.Background(),
-		databaseURL,
-	)
+func connectDB(ctx context.Context, databaseURL string) (*db.Queries, *pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, databaseURL)
 
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
 		return nil, nil, err
 	}
 

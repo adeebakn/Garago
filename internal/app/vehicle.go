@@ -1,4 +1,4 @@
-package main
+package app
 
 type Vehicle struct {
 	ID         int    `json:"id"`

@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
-import Pagination, { pageRows } from "./Pagination";
+import { useConfirm } from "../ui/confirm-context";
+import { pageRows } from "../utils/pagination";
+import Pagination from "./Pagination";
 import SearchInput from "./SearchInput";
 import FormDrawer from "./FormDrawer";
 import SearchableSelect from "./SearchableSelect";
@@ -11,7 +13,7 @@ function Vehicles() {
   const [vehicles, setVehicles] = useState([]), [customers, setCustomers] = useState([]), [form, setForm] = useState(blank), [editing, setEditing] = useState(null), [open, setOpen] = useState(false), [error, setError] = useState(""), [page, setPage] = useState(1), [search, setSearch] = useState("");
   const confirm = useConfirm();
   const load = async () => { try { const [vehicleResult, customerResult] = await Promise.all([api.get("/vehicles"), api.get("/customers")]); setVehicles(vehicleResult.data); setCustomers(customerResult.data); setPage(1); } catch (err) { setError(err.response?.data?.error || "Could not load vehicles."); } };
-  useEffect(() => { load(); }, []);
+  useInitialLoad(load);
   const close = () => { setOpen(false); setEditing(null); setForm(blank); };
   const add = () => { setError(""); setEditing(null); setForm(blank); setOpen(true); };
   const edit = (vehicle) => { setError(""); setEditing(vehicle); setForm({ customerId: vehicle.CustomerID, regNo: vehicle.RegNo, vehicle: vehicle.Vehicle }); setOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); };

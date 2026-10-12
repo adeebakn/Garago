@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"net/mail"
 	"net/smtp"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -31,14 +30,14 @@ type smtpPasswordResetMailer struct {
 var passwordMailer passwordResetMailer
 var passwordResetFrontendURL string
 
-func initializeMailer() error {
+func initializeMailer(cfg config) error {
 	values := map[string]string{
-		"SMTP_HOST":      strings.TrimSpace(os.Getenv("SMTP_HOST")),
-		"SMTP_PORT":      strings.TrimSpace(os.Getenv("SMTP_PORT")),
-		"SMTP_USERNAME":  strings.TrimSpace(os.Getenv("SMTP_USERNAME")),
-		"SMTP_PASSWORD":  strings.TrimSpace(os.Getenv("SMTP_PASSWORD")),
-		"SMTP_FROM":      strings.TrimSpace(os.Getenv("SMTP_FROM")),
-		"SMTP_FROM_NAME": strings.TrimSpace(os.Getenv("SMTP_FROM_NAME")),
+		"SMTP_HOST":      cfg.smtpHost,
+		"SMTP_PORT":      strconv.Itoa(cfg.smtpPort),
+		"SMTP_USERNAME":  cfg.smtpUsername,
+		"SMTP_PASSWORD":  cfg.smtpPassword,
+		"SMTP_FROM":      cfg.smtpFrom,
+		"SMTP_FROM_NAME": cfg.smtpFromName,
 	}
 	for name, value := range values {
 		if value == "" {
@@ -53,10 +52,7 @@ func initializeMailer() error {
 	if err != nil || from.Address != values["SMTP_FROM"] {
 		return errors.New("SMTP_FROM must be a valid email address")
 	}
-	frontendURL := strings.TrimSpace(os.Getenv("FRONTEND_URL"))
-	if frontendURL == "" {
-		frontendURL = "http://localhost:5173"
-	}
+	frontendURL := cfg.frontendURL
 	parsedURL, err := url.Parse(frontendURL)
 	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
 		return errors.New("FRONTEND_URL must be an absolute URL")

@@ -1,12 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import api from "../api";
-
-const fallbackOrganization = { name: "Garago", address: "", phone: "", email: "" };
-const OrganizationContext = createContext({ organization: fallbackOrganization, refreshOrganization: async () => {} });
+import { useInitialLoad } from "../hooks/use-initial-load";
+import { fallbackOrganization, OrganizationContext } from "./organization-context";
 
 export function OrganizationProvider({ children }) {
   const [organization, setOrganization] = useState(fallbackOrganization);
-  const refreshOrganization = async () => {
+	const refreshOrganization = useCallback(async () => {
     try {
       const { data } = await api.get("/organization");
       setOrganization(data);
@@ -14,9 +13,8 @@ export function OrganizationProvider({ children }) {
     } catch {
       return fallbackOrganization;
     }
-  };
-  useEffect(() => { refreshOrganization(); }, []);
-  return <OrganizationContext.Provider value={{ organization, setOrganization, refreshOrganization }}>{children}</OrganizationContext.Provider>;
+  }, []);
+	useInitialLoad(refreshOrganization);
+	const value = useMemo(() => ({ organization, setOrganization, refreshOrganization }), [organization, refreshOrganization]);
+	return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;
 }
-
-export const useOrganization = () => useContext(OrganizationContext);

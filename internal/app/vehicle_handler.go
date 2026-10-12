@@ -1,10 +1,9 @@
-package main
+package app
 
 import (
 	db "garago/db/sqlc"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -62,16 +61,12 @@ func getVehicles(c *gin.Context, queries *db.Queries) {
 
 // get  vehicle by id
 func getVehicleByID(c *gin.Context, queries *db.Queries) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid vehicle ID",
-		})
+	id, ok := pathID(c, "vehicle")
+	if !ok {
 		return
 	}
 
-	vehicle, err := queries.GetVehicle(c, int32(id))
+	vehicle, err := queries.GetVehicle(c, id)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -86,16 +81,12 @@ func getVehicleByID(c *gin.Context, queries *db.Queries) {
 //get the vehicle by customer id
 
 func getVehiclesByCustomerID(c *gin.Context, queries *db.Queries) {
-	customerID, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid customer ID",
-		})
+	customerID, ok := pathID(c, "customer")
+	if !ok {
 		return
 	}
 
-	vehicles, err := queries.GetVehiclesByCustomerID(c, int32(customerID))
+	vehicles, err := queries.GetVehiclesByCustomerID(c, customerID)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -110,12 +101,8 @@ func getVehiclesByCustomerID(c *gin.Context, queries *db.Queries) {
 // update vehicle
 
 func updateVehicleByID(c *gin.Context, queries *db.Queries) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid vehicle ID",
-		})
+	id, ok := pathID(c, "vehicle")
+	if !ok {
 		return
 	}
 
@@ -140,7 +127,7 @@ func updateVehicleByID(c *gin.Context, queries *db.Queries) {
 			CustomerID: int32(vehicle.CustomerID),
 			RegNo:      vehicle.RegNo,
 			Vehicle:    vehicle.Vehicle,
-			ID:         int32(id),
+			ID:         id,
 		},
 	)
 
@@ -159,16 +146,12 @@ func updateVehicleByID(c *gin.Context, queries *db.Queries) {
 //delete vehicle
 
 func deleteVehicleByID(c *gin.Context, queries *db.Queries) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid vehicle ID",
-		})
+	id, ok := pathID(c, "vehicle")
+	if !ok {
 		return
 	}
 
-	err = queries.DeleteVehicle(c, int32(id))
+	err := queries.DeleteVehicle(c, id)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

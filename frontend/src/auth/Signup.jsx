@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
+import { apiErrorMessage } from "../utils/api-error";
 import "./auth.css";
 
 export default function Signup() {
@@ -13,7 +14,7 @@ export default function Signup() {
     if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
     setSubmitting(true);
     try { await api.post("/auth/signup", { name: form.name, email: form.email, password: form.password }); navigate("/login", { state: { created: true } }); }
-    catch (err) { setError(err.response?.data?.error || "Could not create account."); }
+    catch (err) { setError(apiErrorMessage(err, "Could not create account.")); }
     finally { setSubmitting(false); }
   };
   const change = (key) => (event) => setForm({ ...form, [key]: event.target.value });

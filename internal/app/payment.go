@@ -1,4 +1,4 @@
-package main
+package app
 
 type CreatePaymentRequest struct {
 	InvoiceID     int     `json:"invoice_id"`

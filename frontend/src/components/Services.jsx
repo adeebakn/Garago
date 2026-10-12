@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
+import { useConfirm } from "../ui/confirm-context";
 import SearchInput from "./SearchInput";
 import FormDrawer from "./FormDrawer";
 
@@ -11,7 +12,7 @@ function Services() {
   const [services, setServices] = useState([]), [form, setForm] = useState(blank), [editing, setEditing] = useState(null), [open, setOpen] = useState(false), [error, setError] = useState(""), [search, setSearch] = useState("");
   const confirm = useConfirm();
   const load = async () => { try { setServices((await api.get("/services")).data); } catch (err) { setError(err.response?.data?.error || "Could not load services."); } };
-  useEffect(() => { load(); }, []);
+  useInitialLoad(load);
   const close = () => { setOpen(false); setEditing(null); setForm(blank); };
   const add = () => { setError(""); setEditing(null); setForm(blank); setOpen(true); };
   const edit = (service) => { setError(""); setEditing(service); setForm({ name: service.Name, description: descriptionOf(service), price: service.Price }); setOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); };

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -64,24 +63,8 @@ var (
 	authConfig  authSettings
 )
 
-func initializeAuth(ctx context.Context) error {
-	secret := os.Getenv("JWT_SECRET")
-	if len(secret) < 32 {
-		return errors.New("JWT_SECRET must be at least 32 characters")
-	}
-	hours := 24
-	if configured := os.Getenv("JWT_EXPIRY_HOURS"); configured != "" {
-		parsed, err := strconv.Atoi(configured)
-		if err != nil || parsed <= 0 {
-			return errors.New("JWT_EXPIRY_HOURS must be a positive number")
-		}
-		hours = parsed
-	}
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379/0"
-	}
-	options, err := redis.ParseURL(redisURL)
+func initializeAuth(ctx context.Context, cfg config) error {
+	options, err := redis.ParseURL(cfg.redisURL)
 	if err != nil {
 		return fmt.Errorf("invalid REDIS_URL: %w", err)
 	}
@@ -90,9 +73,9 @@ func initializeAuth(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 	authConfig = authSettings{
-		secret:       []byte(secret),
-		sessionTTL:   time.Duration(hours) * time.Hour,
-		cookieSecure: os.Getenv("COOKIE_SECURE") == "true",
+		secret:       []byte(cfg.jwtSecret),
+		sessionTTL:   cfg.sessionTTL,
+		cookieSecure: cfg.cookieSecure,
 	}
 	return nil
 }
@@ -105,12 +88,12 @@ func newSessionID() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func createSessionToken(user db.User) (string, string, error) {
+func createSessionToken(ctx context.Context, user db.User) (string, string, error) {
 	sessionID, err := newSessionID()
 	if err != nil {
 		return "", "", err
 	}
-	authVersion, err := getAuthVersion(context.Background(), user.ID)
+	authVersion, err := getAuthVersion(ctx, user.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -204,7 +187,7 @@ func login(c *gin.Context, queries *db.Queries) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
-	token, sessionID, err := createSessionToken(user)
+	token, sessionID, err := createSessionToken(c, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return

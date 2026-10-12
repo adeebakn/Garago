@@ -1,4 +1,4 @@
-package main
+package app
 
 type CreateInvoiceRequest struct {
 	WorkOrderID int `json:"work_order_id"`

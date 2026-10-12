@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+.codex-build
 dist-ssr
 *.local
 

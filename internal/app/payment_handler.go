@@ -1,7 +1,6 @@
-package main
+package app
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
@@ -45,12 +44,13 @@ func createPayment(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	tx, err := databasePool.Begin(context.Background())
+	ctx := c.Request.Context()
+	tx, err := databasePool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start payment transaction"})
 		return
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 	txQueries := queries.WithTx(tx)
 
 	// FOR UPDATE locks this invoice while its remaining balance is checked.
@@ -85,7 +85,7 @@ func createPayment(c *gin.Context, queries *db.Queries) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update invoice status"})
 		return
 	}
-	if err := tx.Commit(context.Background()); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save payment"})
 		return
 	}
@@ -144,12 +144,13 @@ func deletePaymentByID(c *gin.Context, queries *db.Queries) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment ID"})
 			return
 		}
-		tx, err := databasePool.Begin(context.Background())
+		ctx := c.Request.Context()
+		tx, err := databasePool.Begin(ctx)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start payment transaction"})
 			return
 		}
-		defer tx.Rollback(context.Background())
+		defer tx.Rollback(ctx)
 		txQueries := queries.WithTx(tx)
 		payment, err := txQueries.GetPayment(c, int32(id))
 		if err != nil {
@@ -175,7 +176,7 @@ func deletePaymentByID(c *gin.Context, queries *db.Queries) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update invoice status"})
 			return
 		}
-		if err := tx.Commit(context.Background()); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment"})
 			return
 		}

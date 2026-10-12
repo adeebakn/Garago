@@ -1,7 +1,6 @@
-package main
+package app
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
@@ -64,12 +63,13 @@ func createQuotation(c *gin.Context, queries *db.Queries) {
 	}
 
 	// A transaction makes the quotation header and every item one unit of work.
-	tx, err := databasePool.Begin(context.Background())
+	ctx := c.Request.Context()
+	tx, err := databasePool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start quotation transaction"})
 		return
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 	txQueries := queries.WithTx(tx)
 
 	quotation, err := txQueries.CreateQuotation(
@@ -122,7 +122,7 @@ func createQuotation(c *gin.Context, queries *db.Queries) {
 			return
 		}
 	}
-	if err := tx.Commit(context.Background()); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save quotation"})
 		return
 	}
@@ -213,12 +213,13 @@ func updateQuotationByID(c *gin.Context, queries *db.Queries) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Advance requested must be between ₹0 and the quotation total"})
 		return
 	}
-	tx, err := databasePool.Begin(context.Background())
+	ctx := c.Request.Context()
+	tx, err := databasePool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start quotation update"})
 		return
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 	txQueries := queries.WithTx(tx)
 	updated, err := txQueries.UpdateQuotation(c, db.UpdateQuotationParams{CustomerID: int32(request.CustomerID), VehicleID: int32(request.VehicleID), TotalAmount: total, AdvanceRequested: request.AdvanceRequested, ID: int32(id)})
 	if err != nil {
@@ -236,7 +237,7 @@ func updateQuotationByID(c *gin.Context, queries *db.Queries) {
 			return
 		}
 	}
-	if err := tx.Commit(context.Background()); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update quotation"})
 		return
 	}

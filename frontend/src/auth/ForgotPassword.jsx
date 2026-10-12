@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
+import { apiErrorMessage } from "../utils/api-error";
 import "./auth.css";
 
 export default function ForgotPassword() {
@@ -17,7 +18,7 @@ export default function ForgotPassword() {
       await api.post("/auth/forgot-password", { email });
       setSent(true);
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "Unable to request a reset email. Please try again.");
+      setError(apiErrorMessage(requestError, "Unable to request a reset email. Please try again."));
     } finally {
       setSubmitting(false);
     }

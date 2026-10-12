@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
+import { useConfirm } from "../ui/confirm-context";
 import FormDrawer from "./FormDrawer";
 import SearchableSelect from "./SearchableSelect";
 import SearchInput from "./SearchInput";
@@ -9,7 +10,7 @@ function WorkOrders() {
   const [quotes, setQuotes] = useState([]), [orders, setOrders] = useState([]), [customers, setCustomers] = useState([]), [vehicles, setVehicles] = useState([]), [services, setServices] = useState([]), [dueDate, setDueDate] = useState(""), [quoteId, setQuoteId] = useState(""), [open, setOpen] = useState(false), [error, setError] = useState(""), [search, setSearch] = useState(""), [dueDateFilter, setDueDateFilter] = useState(""), [preview, setPreview] = useState(null), [editingOrder, setEditingOrder] = useState(null);
   const confirm = useConfirm();
   const load = async () => { try { const [q, o, c, v, s] = await Promise.all([api.get("/quotations"), api.get("/work-orders"), api.get("/customers"), api.get("/vehicles"), api.get("/services")]); const quotations = Array.isArray(q.data) ? q.data : []; setQuotes(quotations.filter(x => x.Status === "Approved")); setOrders(Array.isArray(o.data) ? o.data : []); setCustomers(c.data || []); setVehicles(v.data || []); setServices(s.data || []); } catch { setError("Could not load work orders."); } };
-  useEffect(() => { load(); }, []);
+  useInitialLoad(load);
   const close = () => { setOpen(false); setQuoteId(""); setDueDate(""); setEditingOrder(null); };
   const quotationOption = (quotation) => {
     const customer = customers.find((entry) => String(entry.ID) === String(quotation.CustomerID));

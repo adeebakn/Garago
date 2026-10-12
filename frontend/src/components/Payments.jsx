@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useInitialLoad } from "../hooks/use-initial-load";
 import api from "../api";
-import { useConfirm } from "../ui/ConfirmContext";
+import { useConfirm } from "../ui/confirm-context";
 import PaymentReceipt from "./PaymentReceipt";
 import FormDrawer from "./FormDrawer";
 import SearchInput from "./SearchInput";
@@ -25,7 +26,7 @@ function Payments() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useInitialLoad(load);
   const close = () => { setOpen(false); setInvoiceId(""); setAmount(""); setMethod("Cash"); setError(""); };
   const selected = useMemo(() => invoices.find((invoice) => String(invoice.ID) === String(invoiceId)), [invoices, invoiceId]);
   const paidFor = (id) => payments.filter((payment) => payment.InvoiceID === id).reduce((sum, payment) => sum + payment.Amount, 0);
