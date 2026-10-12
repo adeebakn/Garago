@@ -42,7 +42,6 @@ export default function PaymentReceipt({ payment, paid, balance, onClose }) {
       <div className="receipt-preview">
         <article className="receipt-document">
           <header className="receipt-brand">
-            <span className="receipt-mark">{(organization.name || "A").charAt(0).toUpperCase()}</span>
             <div><strong>{organization.name || "Garago"}</strong><span>{contact || "Payment receipt"}</span></div>
           </header>
           <div className="receipt-title"><div><p>PAYMENT RECEIPT</p><h1>Payment received</h1></div></div>

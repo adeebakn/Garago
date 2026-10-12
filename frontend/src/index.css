@@ -1391,13 +1391,6 @@ td.actions-column .work-order-row-actions .action-danger {
     font-size: .75rem;
 }
 
-.receipt-mark {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    font-size: .8rem;
-}
-
 .receipt-title {
     padding: 17px 38px 12px 0;
 }

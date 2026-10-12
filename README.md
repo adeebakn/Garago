@@ -81,8 +81,10 @@ Migrations are not run automatically by the application.
 ### 4. Run the API
 
 ```powershell
-go run ./cmd/api
+go run .
 ```
+
+The explicit production entry point is also available with `go run ./cmd/api`.
 
 The API is available at `http://localhost:8080/api`. Verify it with `GET /api/health`.
 
