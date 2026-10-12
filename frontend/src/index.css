@@ -152,12 +152,14 @@ select {
 
 .searchable-picker {
     position: relative;
-    flex: 1 1 100%;
-    width:416px;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .searchable-picker input {
-    width: 416px;
+    width: 100%;
+    min-width: 0;
 }
 
 .slide-form .form-grid>label:has(.searchable-picker) {
@@ -217,6 +219,8 @@ select {
 .picker-with-add {
     display: flex;
     flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
     align-items: flex-start;
     gap: 8px;
 }

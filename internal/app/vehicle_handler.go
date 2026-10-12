@@ -1,8 +1,10 @@
 package app
 
 import (
+	"errors"
 	db "garago/db/sqlc"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strings"
 )
@@ -151,8 +153,15 @@ func deleteVehicleByID(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	err := queries.DeleteVehicle(c, id)
-
+	err := archiveVehicle(c.Request.Context(), id)
+	if errors.Is(err, errVehicleHasHistory) {
+		apiError(c, http.StatusConflict, "Vehicle cannot be deleted because quotation or work-order history is linked to this vehicle")
+		return
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		apiError(c, http.StatusNotFound, "Vehicle not found")
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to delete vehicle",

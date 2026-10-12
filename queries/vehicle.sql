@@ -52,10 +52,3 @@ SET
 WHERE id = $4
   AND deleted_at IS NULL
 RETURNING id, customer_id, UPPER(reg_no) AS reg_no, vehicle, created_at;
-
-
--- name: DeleteVehicle :exec
-UPDATE vehicles
-SET deleted_at = CURRENT_TIMESTAMP
-WHERE id = $1
-  AND deleted_at IS NULL;

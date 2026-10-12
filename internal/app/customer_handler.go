@@ -1,11 +1,13 @@
 package app
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
 	db "garago/db/sqlc"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -141,8 +143,15 @@ func deleteCustomerByID(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	err := queries.DeleteCustomer(c, id)
-
+	err := archiveCustomer(c.Request.Context(), id)
+	if errors.Is(err, errCustomerHasHistory) {
+		apiError(c, http.StatusConflict, "Customer cannot be deleted because vehicles or business history are linked to this customer")
+		return
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		apiError(c, http.StatusNotFound, "Customer not found")
+		return
+	}
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "Failed to delete customer")
 		return

@@ -80,7 +80,7 @@ function Customers() {
   };
 
   const remove = async (id) => {
-    if (!await confirm({ title: "Delete customer?", message: "This customer will no longer appear in the workspace.", confirmLabel: "Delete", destructive: true })) return;
+    if (!await confirm({ title: "Delete customer?", message: "Deletion is allowed only when this customer has no vehicles or business history.", confirmLabel: "Delete", destructive: true })) return;
     setError("");
     try {
       await api.delete(`/customers/${id}`);

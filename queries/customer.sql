@@ -23,9 +23,3 @@ SET
 WHERE id=$4
   AND deleted_at IS NULL
 RETURNING id,name,phone,email,created_at;
-
-
--- name: DeleteCustomer :exec
-UPDATE customers
-SET deleted_at = CURRENT_TIMESTAMP
-WHERE id = $1;

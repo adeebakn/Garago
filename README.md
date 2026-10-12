@@ -143,6 +143,17 @@ Customer + Vehicle
       Payment
 ```
 
+### History and deletion rules
+
+Garago preserves the identity attached to operational and financial records:
+
+- A customer can be deleted only when no vehicle or business-history record has ever been linked to that customer.
+- A vehicle can be deleted only when no quotation or work order has ever been linked to that vehicle.
+- Archived quotations, work orders, invoices, and payments still count as history.
+- Delete requests that would break this audit trail return HTTP `409 Conflict` and leave the record unchanged.
+
+These rules are enforced by both the backend and PostgreSQL triggers; the frontend confirmation text is informational and is not the security boundary. This prevents older application processes, maintenance scripts, or direct SQL from bypassing audit-history protection.
+
 ## API overview
 
 Public endpoints include health, organization details, sign-up, sign-in, and password reset. Authenticated endpoints cover:

@@ -43,18 +43,6 @@ func (q *Queries) CreateVehicle(ctx context.Context, arg CreateVehicleParams) (C
 	return i, err
 }
 
-const deleteVehicle = `-- name: DeleteVehicle :exec
-UPDATE vehicles
-SET deleted_at = CURRENT_TIMESTAMP
-WHERE id = $1
-  AND deleted_at IS NULL
-`
-
-func (q *Queries) DeleteVehicle(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deleteVehicle, id)
-	return err
-}
-
 const getVehicle = `-- name: GetVehicle :one
 SELECT
     v.id,
