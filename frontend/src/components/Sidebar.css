@@ -1,0 +1,10 @@
+.sidebar { display: flex; position: fixed; z-index: 40; top: 72px; bottom: 0; left: 0; flex-direction: column; width: 244px; padding: 26px 14px 16px; color: #6e6e73; background: #fbfbfd; border-right: 1px solid #e5e5ea; }
+.nav-label { margin: 0 10px 10px; color: #71809e; font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.sidebar nav { display: grid; gap: 4px; }
+.sidebar a { display: flex; align-items: center; gap: 11px; padding: 10px 12px; color: #515154; border-radius: 9px; text-decoration: none; font-size: .91rem; font-weight: 600; transition: background .18s ease, color .18s ease; }
+.sidebar a:hover { color: #1d1d1f; background: #f2f2f7; }
+.sidebar a.active { color: #087367; background: #def7f1; box-shadow: none; }
+.nav-icon { width: 18px; text-align: center; font-size: 1rem; }
+.sidebar-footer { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 14px 10px 4px; color: #7d8aa4; font-size: .78rem; }
+.status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; box-shadow: 0 0 0 4px rgb(52 211 153 / 12%); }
+@media (max-width: 760px) { .layout { display: block; padding-left: 0; }.sidebar { position: fixed; z-index: 40; top: auto; right: 0; bottom: 0; left: 0; width: 100%; min-height: 0; padding: 7px max(10px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); background: rgb(255 255 255 / 96%); border-top: 1px solid #dfe9e6; border-right: 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 8%); backdrop-filter: blur(18px); }.sidebar nav { display: grid; grid-auto-columns: minmax(64px, 1fr); grid-auto-flow: column; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }.sidebar nav::-webkit-scrollbar { display: none; }.sidebar a { flex: 0 0 auto; flex-direction: column; justify-content: center; gap: 3px; min-height: 56px; padding: 6px 8px; font-size: .66rem; text-align: center; }.nav-icon { width: auto; font-size: 1.05rem; }.nav-label, .sidebar-footer { display: none; }.content { padding-bottom: calc(88px + env(safe-area-inset-bottom)); } }

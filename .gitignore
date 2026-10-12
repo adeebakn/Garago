@@ -1,0 +1,14 @@
+# Build output
+*.exe
+.cache/
+
+# Environment / secrets
+.env
+
+# IDE / editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
