@@ -7,12 +7,13 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countInvoicesByStatus = `-- name: CountInvoicesByStatus :one
-SELECT COUNT(*)
-FROM invoices
-WHERE status = $1
+SELECT COUNT(*) FROM invoices
+WHERE status = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) CountInvoicesByStatus(ctx context.Context, status string) (int64, error) {
@@ -23,14 +24,9 @@ func (q *Queries) CountInvoicesByStatus(ctx context.Context, status string) (int
 }
 
 const createInvoice = `-- name: CreateInvoice :one
-INSERT INTO invoices (
-    work_order_id,
-    customer_id,
-    total_amount,
-    status
-)
+INSERT INTO invoices (work_order_id, customer_id, total_amount, status)
 VALUES ($1, $2, $3, $4)
-RETURNING id, work_order_id, customer_id, total_amount, status, created_at
+RETURNING id, invoice_number, work_order_id, customer_id, total_amount, status, created_at, deleted_at
 `
 
 type CreateInvoiceParams struct {
@@ -40,44 +36,90 @@ type CreateInvoiceParams struct {
 	Status      string
 }
 
-func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
+type CreateInvoiceRow struct {
+	ID            int32
+	InvoiceNumber string
+	WorkOrderID   int32
+	CustomerID    int32
+	TotalAmount   float64
+	Status        string
+	CreatedAt     pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
+}
+
+func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (CreateInvoiceRow, error) {
 	row := q.db.QueryRow(ctx, createInvoice,
 		arg.WorkOrderID,
 		arg.CustomerID,
 		arg.TotalAmount,
 		arg.Status,
 	)
-	var i Invoice
+	var i CreateInvoiceRow
 	err := row.Scan(
 		&i.ID,
+		&i.InvoiceNumber,
 		&i.WorkOrderID,
 		&i.CustomerID,
 		&i.TotalAmount,
 		&i.Status,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
-const deleteInvoice = `-- name: DeleteInvoice :exec
-DELETE FROM invoices
-WHERE id = $1
+const getInvoice = `-- name: GetInvoice :one
+SELECT id, invoice_number, work_order_id, customer_id, total_amount, status, created_at, deleted_at
+FROM invoices
+WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) DeleteInvoice(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deleteInvoice, id)
-	return err
+type GetInvoiceRow struct {
+	ID            int32
+	InvoiceNumber string
+	WorkOrderID   int32
+	CustomerID    int32
+	TotalAmount   float64
+	Status        string
+	CreatedAt     pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
 }
 
-const getInvoice = `-- name: GetInvoice :one
-SELECT id, work_order_id, customer_id, total_amount, status, created_at
+func (q *Queries) GetInvoice(ctx context.Context, id int32) (GetInvoiceRow, error) {
+	row := q.db.QueryRow(ctx, getInvoice, id)
+	var i GetInvoiceRow
+	err := row.Scan(
+		&i.ID,
+		&i.InvoiceNumber,
+		&i.WorkOrderID,
+		&i.CustomerID,
+		&i.TotalAmount,
+		&i.Status,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getInvoiceByWorkOrder = `-- name: GetInvoiceByWorkOrder :one
+SELECT id, work_order_id, customer_id, total_amount, status, created_at, deleted_at
 FROM invoices
-WHERE id = $1
+WHERE work_order_id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) GetInvoice(ctx context.Context, id int32) (Invoice, error) {
-	row := q.db.QueryRow(ctx, getInvoice, id)
-	var i Invoice
+type GetInvoiceByWorkOrderRow struct {
+	ID          int32
+	WorkOrderID int32
+	CustomerID  int32
+	TotalAmount float64
+	Status      string
+	CreatedAt   pgtype.Timestamp
+	DeletedAt   pgtype.Timestamp
+}
+
+func (q *Queries) GetInvoiceByWorkOrder(ctx context.Context, workOrderID int32) (GetInvoiceByWorkOrderRow, error) {
+	row := q.db.QueryRow(ctx, getInvoiceByWorkOrder, workOrderID)
+	var i GetInvoiceByWorkOrderRow
 	err := row.Scan(
 		&i.ID,
 		&i.WorkOrderID,
@@ -85,33 +127,79 @@ func (q *Queries) GetInvoice(ctx context.Context, id int32) (Invoice, error) {
 		&i.TotalAmount,
 		&i.Status,
 		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getInvoiceForUpdate = `-- name: GetInvoiceForUpdate :one
+SELECT id, work_order_id, customer_id, total_amount, status, created_at, deleted_at
+FROM invoices
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE
+`
+
+type GetInvoiceForUpdateRow struct {
+	ID          int32
+	WorkOrderID int32
+	CustomerID  int32
+	TotalAmount float64
+	Status      string
+	CreatedAt   pgtype.Timestamp
+	DeletedAt   pgtype.Timestamp
+}
+
+func (q *Queries) GetInvoiceForUpdate(ctx context.Context, id int32) (GetInvoiceForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getInvoiceForUpdate, id)
+	var i GetInvoiceForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkOrderID,
+		&i.CustomerID,
+		&i.TotalAmount,
+		&i.Status,
+		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getInvoicesByStatus = `-- name: GetInvoicesByStatus :many
-SELECT id, work_order_id, customer_id, total_amount, status, created_at
+SELECT id, invoice_number, work_order_id, customer_id, total_amount, status, created_at, deleted_at
 FROM invoices
-WHERE status = $1
+WHERE status = $1 AND deleted_at IS NULL
 ORDER BY id
 `
 
-func (q *Queries) GetInvoicesByStatus(ctx context.Context, status string) ([]Invoice, error) {
+type GetInvoicesByStatusRow struct {
+	ID            int32
+	InvoiceNumber string
+	WorkOrderID   int32
+	CustomerID    int32
+	TotalAmount   float64
+	Status        string
+	CreatedAt     pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
+}
+
+func (q *Queries) GetInvoicesByStatus(ctx context.Context, status string) ([]GetInvoicesByStatusRow, error) {
 	rows, err := q.db.Query(ctx, getInvoicesByStatus, status)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Invoice
+	var items []GetInvoicesByStatusRow
 	for rows.Next() {
-		var i Invoice
+		var i GetInvoicesByStatusRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.InvoiceNumber,
 			&i.WorkOrderID,
 			&i.CustomerID,
 			&i.TotalAmount,
 			&i.Status,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -124,14 +212,25 @@ func (q *Queries) GetInvoicesByStatus(ctx context.Context, status string) ([]Inv
 }
 
 const getWorkOrderForInvoice = `-- name: GetWorkOrderForInvoice :one
-SELECT id, quotation_id, customer_id, vehicle_id, status, due_date, created_at
+SELECT id, quotation_id, customer_id, vehicle_id, status, due_date, created_at, deleted_at
 FROM work_orders
-WHERE id = $1
+WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) GetWorkOrderForInvoice(ctx context.Context, id int32) (WorkOrder, error) {
+type GetWorkOrderForInvoiceRow struct {
+	ID          int32
+	QuotationID int32
+	CustomerID  int32
+	VehicleID   int32
+	Status      string
+	DueDate     pgtype.Date
+	CreatedAt   pgtype.Timestamp
+	DeletedAt   pgtype.Timestamp
+}
+
+func (q *Queries) GetWorkOrderForInvoice(ctx context.Context, id int32) (GetWorkOrderForInvoiceRow, error) {
 	row := q.db.QueryRow(ctx, getWorkOrderForInvoice, id)
-	var i WorkOrder
+	var i GetWorkOrderForInvoiceRow
 	err := row.Scan(
 		&i.ID,
 		&i.QuotationID,
@@ -140,32 +239,47 @@ func (q *Queries) GetWorkOrderForInvoice(ctx context.Context, id int32) (WorkOrd
 		&i.Status,
 		&i.DueDate,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, work_order_id, customer_id, total_amount, status, created_at
+SELECT id, invoice_number, work_order_id, customer_id, total_amount, status, created_at, deleted_at
 FROM invoices
+WHERE deleted_at IS NULL
 ORDER BY id
 `
 
-func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
+type ListInvoicesRow struct {
+	ID            int32
+	InvoiceNumber string
+	WorkOrderID   int32
+	CustomerID    int32
+	TotalAmount   float64
+	Status        string
+	CreatedAt     pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
+}
+
+func (q *Queries) ListInvoices(ctx context.Context) ([]ListInvoicesRow, error) {
 	rows, err := q.db.Query(ctx, listInvoices)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Invoice
+	var items []ListInvoicesRow
 	for rows.Next() {
-		var i Invoice
+		var i ListInvoicesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.InvoiceNumber,
 			&i.WorkOrderID,
 			&i.CustomerID,
 			&i.TotalAmount,
 			&i.Status,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -177,11 +291,23 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 	return items, nil
 }
 
+const softDeleteInvoice = `-- name: SoftDeleteInvoice :execrows
+UPDATE invoices SET deleted_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteInvoice(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, softDeleteInvoice, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateInvoiceStatus = `-- name: UpdateInvoiceStatus :one
-UPDATE invoices
-SET status = $1
-WHERE id = $2
-RETURNING id, work_order_id, customer_id, total_amount, status, created_at
+UPDATE invoices SET status = $1
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING id, invoice_number, work_order_id, customer_id, total_amount, status, created_at, deleted_at
 `
 
 type UpdateInvoiceStatusParams struct {
@@ -189,16 +315,29 @@ type UpdateInvoiceStatusParams struct {
 	ID     int32
 }
 
-func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStatusParams) (Invoice, error) {
+type UpdateInvoiceStatusRow struct {
+	ID            int32
+	InvoiceNumber string
+	WorkOrderID   int32
+	CustomerID    int32
+	TotalAmount   float64
+	Status        string
+	CreatedAt     pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
+}
+
+func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStatusParams) (UpdateInvoiceStatusRow, error) {
 	row := q.db.QueryRow(ctx, updateInvoiceStatus, arg.Status, arg.ID)
-	var i Invoice
+	var i UpdateInvoiceStatusRow
 	err := row.Scan(
 		&i.ID,
+		&i.InvoiceNumber,
 		&i.WorkOrderID,
 		&i.CustomerID,
 		&i.TotalAmount,
 		&i.Status,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

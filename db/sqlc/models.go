@@ -18,12 +18,23 @@ type Customer struct {
 }
 
 type Invoice struct {
-	ID          int32
-	WorkOrderID int32
-	CustomerID  int32
-	TotalAmount float64
-	Status      string
-	CreatedAt   pgtype.Timestamp
+	ID            int32
+	WorkOrderID   int32
+	CustomerID    int32
+	TotalAmount   float64
+	Status        string
+	CreatedAt     pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
+	InvoiceNumber string
+}
+
+type OrganizationSetting struct {
+	ID        int16
+	Name      string
+	Address   string
+	Phone     string
+	Email     string
+	UpdatedAt pgtype.Timestamptz
 }
 
 type Payment struct {
@@ -32,15 +43,18 @@ type Payment struct {
 	Amount        float64
 	PaymentMethod string
 	PaymentDate   pgtype.Timestamp
+	DeletedAt     pgtype.Timestamp
 }
 
 type Quotation struct {
-	ID          int32
-	CustomerID  int32
-	VehicleID   int32
-	Status      string
-	TotalAmount float64
-	CreatedAt   pgtype.Timestamp
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+	AdvanceRequested float64
 }
 
 type QuotationItem struct {
@@ -61,21 +75,35 @@ type Service struct {
 	DeletedAt   pgtype.Timestamp
 }
 
+type User struct {
+	ID           int32
+	Name         string
+	Email        string
+	PasswordHash string
+	Role         string
+	CreatedAt    pgtype.Timestamp
+	UpdatedAt    pgtype.Timestamp
+}
+
 type Vehicle struct {
-	ID          int32
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
-	CreatedAt   pgtype.Timestamp
-	DeletedAt   pgtype.Timestamp
+	ID         int32
+	CustomerID int32
+	RegNo      string
+	Vehicle    string
+	CreatedAt  pgtype.Timestamp
+	DeletedAt  pgtype.Timestamp
 }
 
 type WorkOrder struct {
-	ID          int32
-	QuotationID int32
-	CustomerID  int32
-	VehicleID   int32
-	Status      string
-	DueDate     pgtype.Date
-	CreatedAt   pgtype.Timestamp
+	ID              int32
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	WorkOrderNumber string
 }

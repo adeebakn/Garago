@@ -1,292 +1,184 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
-	db "autoerp/db/sqlc"
+	db "garago/db/sqlc"
 
 	"github.com/gin-gonic/gin"
 )
 
-func createPayment(c *gin.Context, queries *db.Queries) {
-	var request CreatePaymentRequest
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid payment data",
-		})
-		return
-	}
-
-	// Get invoice
-	invoice, err := queries.GetInvoice(
-		c,
-		int32(request.InvoiceID),
-	)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Invoice not found",
-		})
-		return
-	}
-
-	// Payment must be greater than 0
-	if request.Amount <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Payment amount must be greater than 0",
-		})
-		return
-	}
-
-	if request.PaymentMethod != PaymentCash &&
-		request.PaymentMethod != PaymentUPI &&
-		request.PaymentMethod != PaymentCard &&
-		request.PaymentMethod != PaymentBankTransfer {
-
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid payment method",
-		})
-		return
-	}
-
-	// Get previous payments for this invoice
-	payments, err := queries.GetPaymentsByInvoice(
-		c,
-		int32(request.InvoiceID),
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get previous payments",
-		})
-		return
-	}
-
-	// Calculate total already paid
-	var totalPaid float64
-
-	for _, payment := range payments {
-		totalPaid += payment.Amount
-	}
-
-	// Calculate remaining balance
-	remainingBalance := invoice.TotalAmount - totalPaid
-
-	// Check if payment is greater than remaining balance
-	if request.Amount > remainingBalance {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Payment amount exceeds remaining balance",
-			"remaining_balance": remainingBalance,
-		})
-		return
-	}
-
-	// Create payment
-	payment, err := queries.CreatePayment(
-		c,
-		db.CreatePaymentParams{
-			InvoiceID:     int32(request.InvoiceID),
-			Amount:        request.Amount,
-			PaymentMethod: request.PaymentMethod,
-		},
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create payment",
-		})
-		return
-	}
-
-	// Calculate balance after this payment
-	remainingBalance -= request.Amount
-
-	// Determine invoice status automatically
-	invoiceStatus := InvoicePartial
-
-	if remainingBalance == 0 {
-		invoiceStatus = InvoicePaid
-	}
-
-	// Update invoice status
-	updatedInvoice, err := queries.UpdateInvoiceStatus(
-		c,
-		db.UpdateInvoiceStatusParams{
-			Status: invoiceStatus,
-			ID:     invoice.ID,
-		},
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Payment created but failed to update invoice status",
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"payment":           payment,
-		"invoice":           updatedInvoice,
-		"invoice_total":     invoice.TotalAmount,
-		"total_paid":        totalPaid + request.Amount,
-		"remaining_balance": remainingBalance,
-	})
+func validPaymentMethod(method string) bool {
+	return method == PaymentCash || method == PaymentUPI || method == PaymentCard || method == PaymentBankTransfer
 }
 
+func paymentSummary(totalAmount float64, payments []db.Payment) (float64, float64, string) {
+	var paid float64
+	for _, payment := range payments {
+		paid += payment.Amount
+	}
+	remaining := totalAmount - paid
+	status := InvoiceUnpaid
+	if paid > 0 && remaining > 0 {
+		status = InvoicePartial
+	} else if remaining == 0 {
+		status = InvoicePaid
+	}
+	return paid, remaining, status
+}
+
+// createPayment records an installment and updates its invoice in one transaction.
+func createPayment(c *gin.Context, queries *db.Queries) {
+	var request CreatePaymentRequest
+	if err := c.ShouldBindJSON(&request); err != nil || request.InvoiceID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A valid invoice is required"})
+		return
+	}
+	if request.Amount <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Payment amount must be greater than 0"})
+		return
+	}
+	if !validPaymentMethod(request.PaymentMethod) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment method"})
+		return
+	}
+
+	tx, err := databasePool.Begin(context.Background())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start payment transaction"})
+		return
+	}
+	defer tx.Rollback(context.Background())
+	txQueries := queries.WithTx(tx)
+
+	// FOR UPDATE locks this invoice while its remaining balance is checked.
+	invoice, err := txQueries.GetInvoiceForUpdate(c, int32(request.InvoiceID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invoice not found"})
+		return
+	}
+	payments, err := txQueries.GetPaymentsByInvoice(c, invoice.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get payment history"})
+		return
+	}
+	paid, remaining, _ := paymentSummary(invoice.TotalAmount, payments)
+	if request.Amount > remaining {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Payment amount exceeds remaining balance", "remaining_balance": remaining})
+		return
+	}
+
+	payment, err := txQueries.CreatePayment(c, db.CreatePaymentParams{InvoiceID: invoice.ID, Amount: request.Amount, PaymentMethod: request.PaymentMethod})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment"})
+		return
+	}
+	newRemaining := remaining - request.Amount
+	newStatus := InvoicePartial
+	if newRemaining == 0 {
+		newStatus = InvoicePaid
+	}
+	updatedInvoice, err := txQueries.UpdateInvoiceStatus(c, db.UpdateInvoiceStatusParams{ID: invoice.ID, Status: newStatus})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update invoice status"})
+		return
+	}
+	if err := tx.Commit(context.Background()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save payment"})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"payment": payment, "invoice": updatedInvoice, "invoice_total": invoice.TotalAmount, "total_paid": paid + request.Amount, "remaining_balance": newRemaining})
+}
 
 func getPaymentsByInvoice(c *gin.Context, queries *db.Queries) {
 	invoiceID, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid invoice ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invoice ID"})
 		return
 	}
-
-	payments, err := queries.GetPaymentsByInvoice(
-		c,
-		int32(invoiceID),
-	)
-
+	payments, err := queries.GetPaymentsByInvoice(c, int32(invoiceID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get payment history",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get payment history"})
 		return
 	}
-
+	if payments == nil {
+		payments = []db.Payment{}
+	}
 	c.JSON(http.StatusOK, payments)
 }
 
 func getPayments(c *gin.Context, queries *db.Queries) {
 	payments, err := queries.ListPayments(c)
-
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get payments",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get payments"})
 		return
 	}
-
+	if payments == nil {
+		payments = []db.Payment{}
+	}
 	c.JSON(http.StatusOK, payments)
 }
 
 func getPaymentByID(c *gin.Context, queries *db.Queries) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid payment ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment ID"})
 		return
 	}
-
 	payment, err := queries.GetPayment(c, int32(id))
-
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Payment not found",
-		})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Payment not found"})
 		return
 	}
-
 	c.JSON(http.StatusOK, payment)
 }
 
 func deletePaymentByID(c *gin.Context, queries *db.Queries) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid payment ID",
-		})
-		return
-	}
-
-	// Get payment before deleting it
-	payment, err := queries.GetPayment(c, int32(id))
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Payment not found",
-		})
-		return
-	}
-
-	// Delete payment
-	err = queries.DeletePayment(c, int32(id))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to delete payment",
-		})
-		return
-	}
-
-	// Get invoice
-	invoice, err := queries.GetInvoice(c, payment.InvoiceID)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Invoice not found",
-		})
-		return
-	}
-
-	// Get remaining payments
-	payments, err := queries.GetPaymentsByInvoice(
-		c,
-		payment.InvoiceID,
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get payment history",
-		})
-		return
-	}
-
-	// Calculate total paid
-	var totalPaid float64
-
-	for _, p := range payments {
-		totalPaid += p.Amount
-	}
-
-	// Determine invoice status
-	invoiceStatus := InvoiceUnpaid
-
-	if totalPaid > 0 && totalPaid < invoice.TotalAmount {
-		invoiceStatus = InvoicePartial
-	}
-
-	if totalPaid == invoice.TotalAmount {
-		invoiceStatus = InvoicePaid
-	}
-
-	// Update invoice status
-	_, err = queries.UpdateInvoiceStatus(
-		c,
-		db.UpdateInvoiceStatusParams{
-			Status: invoiceStatus,
-			ID:     invoice.ID,
-		},
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Payment deleted but failed to update invoice status",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":   "Payment deleted successfully",
-		"total_paid": totalPaid,
-		"remaining_balance": invoice.TotalAmount - totalPaid,
-		"invoice_status": invoiceStatus,
-	})
+	c.JSON(http.StatusConflict, gin.H{"error": "Recorded payments cannot be deleted. Use a future reversal flow to preserve audit history."})
+	return
+	/*
+		id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment ID"})
+			return
+		}
+		tx, err := databasePool.Begin(context.Background())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start payment transaction"})
+			return
+		}
+		defer tx.Rollback(context.Background())
+		txQueries := queries.WithTx(tx)
+		payment, err := txQueries.GetPayment(c, int32(id))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Payment not found"})
+			return
+		}
+		invoice, err := txQueries.GetInvoiceForUpdate(c, payment.InvoiceID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Invoice not found"})
+			return
+		}
+		if rows, err := txQueries.SoftDeletePayment(c, payment.ID); err != nil || rows == 0 {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment"})
+			return
+		}
+		payments, err := txQueries.GetPaymentsByInvoice(c, payment.InvoiceID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get payment history"})
+			return
+		}
+		paid, remaining, status := paymentSummary(invoice.TotalAmount, payments)
+		if _, err := txQueries.UpdateInvoiceStatus(c, db.UpdateInvoiceStatusParams{ID: invoice.ID, Status: status}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update invoice status"})
+			return
+		}
+		if err := tx.Commit(context.Background()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Payment deleted successfully", "total_paid": paid, "remaining_balance": remaining, "invoice_status": status})
+	*/
 }

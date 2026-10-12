@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	db "autoerp/db/sqlc"
+	db "garago/db/sqlc"
 
 	"github.com/gin-gonic/gin"
 )
@@ -53,12 +53,12 @@ func getDashboard(c *gin.Context, queries *db.Queries) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"pending_work_orders":    pending,
+		"pending_work_orders":     pending,
 		"in_progress_work_orders": inProgress,
-		"completed_work_orders":  completed,
-		"unpaid_invoices":        unpaid,
-		"partial_invoices":       partial,
-		"paid_invoices":          paid,
+		"completed_work_orders":   completed,
+		"unpaid_invoices":         unpaid,
+		"partial_invoices":        partial,
+		"paid_invoices":           paid,
 		"total_revenue":           totalRevenue,
 	})
 }

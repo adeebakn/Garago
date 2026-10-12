@@ -7,16 +7,12 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addQuotationItem = `-- name: AddQuotationItem :one
-INSERT INTO quotation_items (
-    quotation_id,
-    service_id,
-    quantity,
-    price,
-    amount
-)
+INSERT INTO quotation_items (quotation_id, service_id, quantity, price, amount)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING id, quotation_id, service_id, quantity, price, amount
 `
@@ -50,83 +46,96 @@ func (q *Queries) AddQuotationItem(ctx context.Context, arg AddQuotationItemPara
 }
 
 const createQuotation = `-- name: CreateQuotation :one
-INSERT INTO quotations (
-    customer_id,
-    vehicle_id,
-    status,
-    total_amount
-)
-VALUES ($1, $2, $3, $4)
-RETURNING id, customer_id, vehicle_id, status, total_amount, created_at
+INSERT INTO quotations (customer_id, vehicle_id, status, total_amount, advance_requested)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, customer_id, vehicle_id, status, total_amount, advance_requested, created_at, deleted_at
 `
 
 type CreateQuotationParams struct {
-	CustomerID  int32
-	VehicleID   int32
-	Status      string
-	TotalAmount float64
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
 }
 
-func (q *Queries) CreateQuotation(ctx context.Context, arg CreateQuotationParams) (Quotation, error) {
+type CreateQuotationRow struct {
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+}
+
+func (q *Queries) CreateQuotation(ctx context.Context, arg CreateQuotationParams) (CreateQuotationRow, error) {
 	row := q.db.QueryRow(ctx, createQuotation,
 		arg.CustomerID,
 		arg.VehicleID,
 		arg.Status,
 		arg.TotalAmount,
+		arg.AdvanceRequested,
 	)
-	var i Quotation
+	var i CreateQuotationRow
 	err := row.Scan(
 		&i.ID,
 		&i.CustomerID,
 		&i.VehicleID,
 		&i.Status,
 		&i.TotalAmount,
+		&i.AdvanceRequested,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
-const deleteQuotation = `-- name: DeleteQuotation :exec
-DELETE FROM quotations
-WHERE id = $1
+const deleteQuotationItems = `-- name: DeleteQuotationItems :exec
+DELETE FROM quotation_items WHERE quotation_id = $1
 `
 
-func (q *Queries) DeleteQuotation(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deleteQuotation, id)
+func (q *Queries) DeleteQuotationItems(ctx context.Context, quotationID int32) error {
+	_, err := q.db.Exec(ctx, deleteQuotationItems, quotationID)
 	return err
 }
 
 const getQuotation = `-- name: GetQuotation :one
-SELECT id, customer_id, vehicle_id, status, total_amount, created_at
-FROM quotations
-WHERE id = $1
+SELECT id, customer_id, vehicle_id, status, total_amount, advance_requested, created_at, deleted_at
+FROM quotations WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) GetQuotation(ctx context.Context, id int32) (Quotation, error) {
+type GetQuotationRow struct {
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+}
+
+func (q *Queries) GetQuotation(ctx context.Context, id int32) (GetQuotationRow, error) {
 	row := q.db.QueryRow(ctx, getQuotation, id)
-	var i Quotation
+	var i GetQuotationRow
 	err := row.Scan(
 		&i.ID,
 		&i.CustomerID,
 		&i.VehicleID,
 		&i.Status,
 		&i.TotalAmount,
+		&i.AdvanceRequested,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getQuotationItems = `-- name: GetQuotationItems :many
-SELECT
-    id,
-    quotation_id,
-    service_id,
-    quantity,
-    price,
-    amount
-FROM quotation_items
-WHERE quotation_id = $1
-ORDER BY id
+SELECT id, quotation_id, service_id, quantity, price, amount
+FROM quotation_items WHERE quotation_id = $1 ORDER BY id
 `
 
 func (q *Queries) GetQuotationItems(ctx context.Context, quotationID int32) ([]QuotationItem, error) {
@@ -157,28 +166,39 @@ func (q *Queries) GetQuotationItems(ctx context.Context, quotationID int32) ([]Q
 }
 
 const getQuotationsByStatus = `-- name: GetQuotationsByStatus :many
-SELECT id, customer_id, vehicle_id, status, total_amount, created_at
-FROM quotations
-WHERE status = $1
-ORDER BY id
+SELECT id, customer_id, vehicle_id, status, total_amount, advance_requested, created_at, deleted_at
+FROM quotations WHERE status = $1 AND deleted_at IS NULL ORDER BY id
 `
 
-func (q *Queries) GetQuotationsByStatus(ctx context.Context, status string) ([]Quotation, error) {
+type GetQuotationsByStatusRow struct {
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+}
+
+func (q *Queries) GetQuotationsByStatus(ctx context.Context, status string) ([]GetQuotationsByStatusRow, error) {
 	rows, err := q.db.Query(ctx, getQuotationsByStatus, status)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Quotation
+	var items []GetQuotationsByStatusRow
 	for rows.Next() {
-		var i Quotation
+		var i GetQuotationsByStatusRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CustomerID,
 			&i.VehicleID,
 			&i.Status,
 			&i.TotalAmount,
+			&i.AdvanceRequested,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -191,27 +211,39 @@ func (q *Queries) GetQuotationsByStatus(ctx context.Context, status string) ([]Q
 }
 
 const listQuotations = `-- name: ListQuotations :many
-SELECT id, customer_id, vehicle_id, status, total_amount, created_at
-FROM quotations
-ORDER BY id
+SELECT id, customer_id, vehicle_id, status, total_amount, advance_requested, created_at, deleted_at
+FROM quotations WHERE deleted_at IS NULL ORDER BY id
 `
 
-func (q *Queries) ListQuotations(ctx context.Context) ([]Quotation, error) {
+type ListQuotationsRow struct {
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+}
+
+func (q *Queries) ListQuotations(ctx context.Context) ([]ListQuotationsRow, error) {
 	rows, err := q.db.Query(ctx, listQuotations)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Quotation
+	var items []ListQuotationsRow
 	for rows.Next() {
-		var i Quotation
+		var i ListQuotationsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CustomerID,
 			&i.VehicleID,
 			&i.Status,
 			&i.TotalAmount,
+			&i.AdvanceRequested,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -223,11 +255,71 @@ func (q *Queries) ListQuotations(ctx context.Context) ([]Quotation, error) {
 	return items, nil
 }
 
-const updateQuotationStatus = `-- name: UpdateQuotationStatus :one
+const softDeleteQuotation = `-- name: SoftDeleteQuotation :execrows
+UPDATE quotations SET deleted_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteQuotation(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, softDeleteQuotation, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateQuotation = `-- name: UpdateQuotation :one
 UPDATE quotations
-SET status = $1
-WHERE id = $2
-RETURNING id, customer_id, vehicle_id, status, total_amount, created_at
+SET customer_id = $1, vehicle_id = $2, total_amount = $3, advance_requested = $4
+WHERE id = $5 AND status = 'Draft' AND deleted_at IS NULL
+RETURNING id, customer_id, vehicle_id, status, total_amount, advance_requested, created_at, deleted_at
+`
+
+type UpdateQuotationParams struct {
+	CustomerID       int32
+	VehicleID        int32
+	TotalAmount      float64
+	AdvanceRequested float64
+	ID               int32
+}
+
+type UpdateQuotationRow struct {
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+}
+
+func (q *Queries) UpdateQuotation(ctx context.Context, arg UpdateQuotationParams) (UpdateQuotationRow, error) {
+	row := q.db.QueryRow(ctx, updateQuotation,
+		arg.CustomerID,
+		arg.VehicleID,
+		arg.TotalAmount,
+		arg.AdvanceRequested,
+		arg.ID,
+	)
+	var i UpdateQuotationRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.VehicleID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.AdvanceRequested,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const updateQuotationStatus = `-- name: UpdateQuotationStatus :one
+UPDATE quotations SET status = $1
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING id, customer_id, vehicle_id, status, total_amount, advance_requested, created_at, deleted_at
 `
 
 type UpdateQuotationStatusParams struct {
@@ -235,16 +327,29 @@ type UpdateQuotationStatusParams struct {
 	ID     int32
 }
 
-func (q *Queries) UpdateQuotationStatus(ctx context.Context, arg UpdateQuotationStatusParams) (Quotation, error) {
+type UpdateQuotationStatusRow struct {
+	ID               int32
+	CustomerID       int32
+	VehicleID        int32
+	Status           string
+	TotalAmount      float64
+	AdvanceRequested float64
+	CreatedAt        pgtype.Timestamp
+	DeletedAt        pgtype.Timestamp
+}
+
+func (q *Queries) UpdateQuotationStatus(ctx context.Context, arg UpdateQuotationStatusParams) (UpdateQuotationStatusRow, error) {
 	row := q.db.QueryRow(ctx, updateQuotationStatus, arg.Status, arg.ID)
-	var i Quotation
+	var i UpdateQuotationStatusRow
 	err := row.Scan(
 		&i.ID,
 		&i.CustomerID,
 		&i.VehicleID,
 		&i.Status,
 		&i.TotalAmount,
+		&i.AdvanceRequested,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

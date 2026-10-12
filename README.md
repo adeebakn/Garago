@@ -1,6 +1,6 @@
-# AutoERP
+# Garago
 
-AutoERP is a cloud-based business management system designed for automobile accessories, customization, and service businesses.
+Garago is a cloud-based business management system designed for automobile accessories, customization, and service businesses.
 
 ## Features
 
@@ -96,6 +96,33 @@ AutoERP/
 
 ## Status
 
-Backend MVP completed.
+The admin backend and React/Vite frontend are in active development. The
+customer-facing portal and authentication are deferred.
 
-React frontend is planned as the next phase.
+## Database migrations
+
+Apply the SQL files in `migrations/` in numeric order using a PostgreSQL
+migration tool or `psql`. When a file in `queries/` changes, run
+`sqlc generate` from the repository root to refresh `db/sqlc`.
+
+## Frontend
+
+```powershell
+cd frontend
+Copy-Item .env.example .env
+npm install
+npm run dev
+```
+
+Set `VITE_API_BASE_URL` in `frontend/.env` when the API is not running at
+`http://localhost:8080/api`.
+
+## Manual acceptance checklist
+
+1. Create a customer, vehicle, and service.
+2. Create a quotation with one or more service lines, then approve it.
+3. Create a work order from that approved quotation.
+4. Create one invoice for the work order; a second attempt must return a
+   conflict.
+5. Record an advance and a final payment; verify the invoice changes from
+   `Unpaid` to `Partial` and then `Paid`.

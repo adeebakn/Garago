@@ -12,9 +12,8 @@ import (
 )
 
 const countWorkOrdersByStatus = `-- name: CountWorkOrdersByStatus :one
-SELECT COUNT(*)
-FROM work_orders
-WHERE status = $1
+SELECT COUNT(*) FROM work_orders
+WHERE status = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) CountWorkOrdersByStatus(ctx context.Context, status string) (int64, error) {
@@ -25,15 +24,9 @@ func (q *Queries) CountWorkOrdersByStatus(ctx context.Context, status string) (i
 }
 
 const createWorkOrder = `-- name: CreateWorkOrder :one
-INSERT INTO work_orders (
-    quotation_id,
-    customer_id,
-    vehicle_id,
-    status,
-    due_date
-)
+INSERT INTO work_orders (quotation_id, customer_id, vehicle_id, status, due_date)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, quotation_id, customer_id, vehicle_id, status, due_date, created_at
+RETURNING id, work_order_number, quotation_id, customer_id, vehicle_id, status, due_date, started_at, completed_at, created_at, deleted_at
 `
 
 type CreateWorkOrderParams struct {
@@ -44,7 +37,21 @@ type CreateWorkOrderParams struct {
 	DueDate     pgtype.Date
 }
 
-func (q *Queries) CreateWorkOrder(ctx context.Context, arg CreateWorkOrderParams) (WorkOrder, error) {
+type CreateWorkOrderRow struct {
+	ID              int32
+	WorkOrderNumber string
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
+}
+
+func (q *Queries) CreateWorkOrder(ctx context.Context, arg CreateWorkOrderParams) (CreateWorkOrderRow, error) {
 	row := q.db.QueryRow(ctx, createWorkOrder,
 		arg.QuotationID,
 		arg.CustomerID,
@@ -52,81 +59,101 @@ func (q *Queries) CreateWorkOrder(ctx context.Context, arg CreateWorkOrderParams
 		arg.Status,
 		arg.DueDate,
 	)
-	var i WorkOrder
+	var i CreateWorkOrderRow
 	err := row.Scan(
 		&i.ID,
+		&i.WorkOrderNumber,
 		&i.QuotationID,
 		&i.CustomerID,
 		&i.VehicleID,
 		&i.Status,
 		&i.DueDate,
+		&i.StartedAt,
+		&i.CompletedAt,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
-const deleteWorkOrder = `-- name: DeleteWorkOrder :exec
-DELETE FROM work_orders
-WHERE id = $1
+const getWorkOrder = `-- name: GetWorkOrder :one
+SELECT id, work_order_number, quotation_id, customer_id, vehicle_id, status, due_date, started_at, completed_at, created_at, deleted_at
+FROM work_orders WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) DeleteWorkOrder(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deleteWorkOrder, id)
-	return err
+type GetWorkOrderRow struct {
+	ID              int32
+	WorkOrderNumber string
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
 }
 
-const getWorkOrder = `-- name: GetWorkOrder :one
-SELECT
-    id,
-    quotation_id,
-    customer_id,
-    vehicle_id,
-    status,
-    due_date,
-    created_at
-FROM work_orders
-WHERE id = $1
-`
-
-func (q *Queries) GetWorkOrder(ctx context.Context, id int32) (WorkOrder, error) {
+func (q *Queries) GetWorkOrder(ctx context.Context, id int32) (GetWorkOrderRow, error) {
 	row := q.db.QueryRow(ctx, getWorkOrder, id)
-	var i WorkOrder
+	var i GetWorkOrderRow
 	err := row.Scan(
 		&i.ID,
+		&i.WorkOrderNumber,
 		&i.QuotationID,
 		&i.CustomerID,
 		&i.VehicleID,
 		&i.Status,
 		&i.DueDate,
+		&i.StartedAt,
+		&i.CompletedAt,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getWorkOrdersByStatus = `-- name: GetWorkOrdersByStatus :many
-SELECT id, quotation_id, customer_id, vehicle_id, status, due_date, created_at
-FROM work_orders
-WHERE status = $1
-ORDER BY id
+SELECT id, work_order_number, quotation_id, customer_id, vehicle_id, status, due_date, started_at, completed_at, created_at, deleted_at
+FROM work_orders WHERE status = $1 AND deleted_at IS NULL ORDER BY id
 `
 
-func (q *Queries) GetWorkOrdersByStatus(ctx context.Context, status string) ([]WorkOrder, error) {
+type GetWorkOrdersByStatusRow struct {
+	ID              int32
+	WorkOrderNumber string
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
+}
+
+func (q *Queries) GetWorkOrdersByStatus(ctx context.Context, status string) ([]GetWorkOrdersByStatusRow, error) {
 	rows, err := q.db.Query(ctx, getWorkOrdersByStatus, status)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []WorkOrder
+	var items []GetWorkOrdersByStatusRow
 	for rows.Next() {
-		var i WorkOrder
+		var i GetWorkOrdersByStatusRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.WorkOrderNumber,
 			&i.QuotationID,
 			&i.CustomerID,
 			&i.VehicleID,
 			&i.Status,
 			&i.DueDate,
+			&i.StartedAt,
+			&i.CompletedAt,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -139,35 +166,45 @@ func (q *Queries) GetWorkOrdersByStatus(ctx context.Context, status string) ([]W
 }
 
 const listWorkOrders = `-- name: ListWorkOrders :many
-SELECT
-    id,
-    quotation_id,
-    customer_id,
-    vehicle_id,
-    status,
-    due_date,
-    created_at
-FROM work_orders
-ORDER BY id
+SELECT id, work_order_number, quotation_id, customer_id, vehicle_id, status, due_date, started_at, completed_at, created_at, deleted_at
+FROM work_orders WHERE deleted_at IS NULL ORDER BY id
 `
 
-func (q *Queries) ListWorkOrders(ctx context.Context) ([]WorkOrder, error) {
+type ListWorkOrdersRow struct {
+	ID              int32
+	WorkOrderNumber string
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
+}
+
+func (q *Queries) ListWorkOrders(ctx context.Context) ([]ListWorkOrdersRow, error) {
 	rows, err := q.db.Query(ctx, listWorkOrders)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []WorkOrder
+	var items []ListWorkOrdersRow
 	for rows.Next() {
-		var i WorkOrder
+		var i ListWorkOrdersRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.WorkOrderNumber,
 			&i.QuotationID,
 			&i.CustomerID,
 			&i.VehicleID,
 			&i.Status,
 			&i.DueDate,
+			&i.StartedAt,
+			&i.CompletedAt,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -179,11 +216,69 @@ func (q *Queries) ListWorkOrders(ctx context.Context) ([]WorkOrder, error) {
 	return items, nil
 }
 
+const softDeleteWorkOrder = `-- name: SoftDeleteWorkOrder :execrows
+UPDATE work_orders SET deleted_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteWorkOrder(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, softDeleteWorkOrder, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updatePendingWorkOrderDueDate = `-- name: UpdatePendingWorkOrderDueDate :one
+UPDATE work_orders SET due_date = $1
+WHERE id = $2 AND status = 'Pending' AND deleted_at IS NULL
+RETURNING id, work_order_number, quotation_id, customer_id, vehicle_id, status, due_date, started_at, completed_at, created_at, deleted_at
+`
+
+type UpdatePendingWorkOrderDueDateParams struct {
+	DueDate pgtype.Date
+	ID      int32
+}
+
+type UpdatePendingWorkOrderDueDateRow struct {
+	ID              int32
+	WorkOrderNumber string
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
+}
+
+func (q *Queries) UpdatePendingWorkOrderDueDate(ctx context.Context, arg UpdatePendingWorkOrderDueDateParams) (UpdatePendingWorkOrderDueDateRow, error) {
+	row := q.db.QueryRow(ctx, updatePendingWorkOrderDueDate, arg.DueDate, arg.ID)
+	var i UpdatePendingWorkOrderDueDateRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkOrderNumber,
+		&i.QuotationID,
+		&i.CustomerID,
+		&i.VehicleID,
+		&i.Status,
+		&i.DueDate,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateWorkOrderStatus = `-- name: UpdateWorkOrderStatus :one
-UPDATE work_orders
-SET status = $1
-WHERE id = $2
-RETURNING id, quotation_id, customer_id, vehicle_id, status, due_date, created_at
+UPDATE work_orders SET status = $1::text,
+    started_at = CASE WHEN $1::text = 'In Progress' AND started_at IS NULL THEN NOW() ELSE started_at END,
+    completed_at = CASE WHEN $1::text = 'Completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING id, work_order_number, quotation_id, customer_id, vehicle_id, status, due_date, started_at, completed_at, created_at, deleted_at
 `
 
 type UpdateWorkOrderStatusParams struct {
@@ -191,17 +286,35 @@ type UpdateWorkOrderStatusParams struct {
 	ID     int32
 }
 
-func (q *Queries) UpdateWorkOrderStatus(ctx context.Context, arg UpdateWorkOrderStatusParams) (WorkOrder, error) {
+type UpdateWorkOrderStatusRow struct {
+	ID              int32
+	WorkOrderNumber string
+	QuotationID     int32
+	CustomerID      int32
+	VehicleID       int32
+	Status          string
+	DueDate         pgtype.Date
+	StartedAt       pgtype.Timestamptz
+	CompletedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamp
+	DeletedAt       pgtype.Timestamp
+}
+
+func (q *Queries) UpdateWorkOrderStatus(ctx context.Context, arg UpdateWorkOrderStatusParams) (UpdateWorkOrderStatusRow, error) {
 	row := q.db.QueryRow(ctx, updateWorkOrderStatus, arg.Status, arg.ID)
-	var i WorkOrder
+	var i UpdateWorkOrderStatusRow
 	err := row.Scan(
 		&i.ID,
+		&i.WorkOrderNumber,
 		&i.QuotationID,
 		&i.CustomerID,
 		&i.VehicleID,
 		&i.Status,
 		&i.DueDate,
+		&i.StartedAt,
+		&i.CompletedAt,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

@@ -1,17 +1,24 @@
 import "./Sidebar.css";
-import {Link} from "react-router-dom";
+import { NavLink } from "react-router-dom";
+
+const links = [
+  ["/", "Dashboard", "⌂"],
+  ["/customers", "Customers", "◉"],
+  ["/vehicles", "Vehicles", "▣"],
+  ["/services", "Services", "✦"],
+  ["/quotations", "Quotations", "▤"],
+  ["/work-orders", "Work Orders", "✓"],
+  ["/invoices", "Invoices", "▧"],
+  ["/payments", "Payments", "₹"],
+  ["/settings", "Settings", "⚙"],
+];
 
 function Sidebar() {
   return (
     <aside className="sidebar">
-      <Link to="/">Dashboard</Link>
-      <Link to="/customers">Customers</Link>
-      <Link to="/vehicles">Vehicles</Link>
-      <Link to="/services">Services</Link>
-      <Link to="/quotations">Quotations</Link>
-      <Link to="/work-orders">Work Orders</Link>
-      <Link to="/invoices">Invoices</Link>
-      <Link to="/payments">Payments</Link>
+      <p className="nav-label">Workspace</p>
+      <nav>{links.map(([to, label, icon]) => <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => isActive ? "active" : ""}><span className="nav-icon">{icon}</span>{label}</NavLink>)}</nav>
+      <div className="sidebar-footer"><span className="status-dot" />Admin</div>
     </aside>
   );
 }

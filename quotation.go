@@ -6,7 +6,8 @@ type QuotationItemRequest struct {
 }
 
 type CreateQuotationRequest struct {
-	CustomerID int `json:"customer_id"`
-	VehicleID  int `json:"vehicle_id"`
-	Items  []QuotationItemRequest `json:"items"`
+	CustomerID int                    `json:"customer_id"`
+	VehicleID  int                    `json:"vehicle_id"`
+	AdvanceRequested float64          `json:"advance_requested"`
+	Items      []QuotationItemRequest `json:"items"`
 }

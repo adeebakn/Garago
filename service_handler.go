@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strconv"
 
-	db "autoerp/db/sqlc"
+	db "garago/db/sqlc"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
 func createService(c *gin.Context, queries *db.Queries) {
 	var service Service
 
@@ -16,6 +17,10 @@ func createService(c *gin.Context, queries *db.Queries) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid service data",
 		})
+		return
+	}
+	if service.Name == "" || service.Price <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Service name and a positive price are required"})
 		return
 	}
 
@@ -94,6 +99,10 @@ func updateServiceByID(c *gin.Context, queries *db.Queries) {
 		})
 		return
 	}
+	if service.Name == "" || service.Price <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Service name and a positive price are required"})
+		return
+	}
 
 	updatedService, err := queries.UpdateService(
 		c,
@@ -104,7 +113,7 @@ func updateServiceByID(c *gin.Context, queries *db.Queries) {
 				Valid:  true,
 			},
 			Price: service.Price,
-			ID:          int32(id),
+			ID:    int32(id),
 		},
 	)
 

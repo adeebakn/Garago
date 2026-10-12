@@ -1,13 +1,2 @@
-.header{
-    height:60px;
-    background-color: #1f2937;
-    color:white;
-    display:flex;
-    align-items:center;
-    padding:0 20px;
-}
-
-.header h1 {
-    margin: 0;
-    font-size: 24px;
-  }
+.header { position: fixed; z-index: 50; top: 0; right: 0; left: 0; height: 72px; display: flex; align-items: center; padding: 0 clamp(18px, 3vw, 36px); color: #1d1d1f; background: rgb(255 255 255 / 92%); border-bottom: 1px solid rgb(0 0 0 / 8%); backdrop-filter: blur(18px); }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 1.12rem; font-weight: 700; letter-spacing: -.03em; }.brand-mark { display: inline-grid; width: 30px; height: 30px; place-items: center; color: #fff; background: #0b8f7f; border-radius: 9px; font-weight: 800; }.header-user { display: flex; align-items: center; gap: 10px; margin-left: auto; }.user-avatar { display: grid; width: 32px; height: 32px; place-items: center; color: #087367; background: #def7f1; border-radius: 50%; font-size: .82rem; font-weight: 800; }.user-details { display: grid; gap: 1px; }.user-details strong { font-size: .86rem; }.user-details span { color: #6e6e73; font-size: .72rem; }.logout-button { min-height: 34px; margin-left: 8px; padding: 6px 10px; color: #087367; background: #effbf8; border-color: #cfede6; font-size: .8rem; }.logout-button:hover { color: #065f55; background: #def7f1; box-shadow: none; } @media (max-width: 520px) { .user-details { display: none; }.logout-button { margin-left: 0; } }

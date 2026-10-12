@@ -12,32 +12,32 @@ import (
 )
 
 const createVehicle = `-- name: CreateVehicle :one
-INSERT INTO vehicles(customer_id,reg_no,vehicle_type) VALUES ($1,$2,$3)
-RETURNING id,customer_id,reg_no,vehicle_type,created_at
+INSERT INTO vehicles(customer_id,reg_no,vehicle) VALUES ($1,$2,$3)
+RETURNING id,customer_id,UPPER(reg_no) AS reg_no,vehicle,created_at
 `
 
 type CreateVehicleParams struct {
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
+	CustomerID int32
+	RegNo      string
+	Vehicle    string
 }
 
 type CreateVehicleRow struct {
-	ID          int32
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
-	CreatedAt   pgtype.Timestamp
+	ID         int32
+	CustomerID int32
+	RegNo      interface{}
+	Vehicle    string
+	CreatedAt  pgtype.Timestamp
 }
 
 func (q *Queries) CreateVehicle(ctx context.Context, arg CreateVehicleParams) (CreateVehicleRow, error) {
-	row := q.db.QueryRow(ctx, createVehicle, arg.CustomerID, arg.RegNo, arg.VehicleType)
+	row := q.db.QueryRow(ctx, createVehicle, arg.CustomerID, arg.RegNo, arg.Vehicle)
 	var i CreateVehicleRow
 	err := row.Scan(
 		&i.ID,
 		&i.CustomerID,
 		&i.RegNo,
-		&i.VehicleType,
+		&i.Vehicle,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -59,8 +59,8 @@ const getVehicle = `-- name: GetVehicle :one
 SELECT
     v.id,
     v.customer_id,
-    v.reg_no,
-    v.vehicle_type,
+    UPPER(v.reg_no) AS reg_no,
+    v.vehicle,
     v.created_at
 FROM vehicles v
 JOIN customers c ON c.id = v.customer_id
@@ -70,11 +70,11 @@ WHERE v.id = $1
 `
 
 type GetVehicleRow struct {
-	ID          int32
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
-	CreatedAt   pgtype.Timestamp
+	ID         int32
+	CustomerID int32
+	RegNo      interface{}
+	Vehicle    string
+	CreatedAt  pgtype.Timestamp
 }
 
 func (q *Queries) GetVehicle(ctx context.Context, id int32) (GetVehicleRow, error) {
@@ -84,7 +84,7 @@ func (q *Queries) GetVehicle(ctx context.Context, id int32) (GetVehicleRow, erro
 		&i.ID,
 		&i.CustomerID,
 		&i.RegNo,
-		&i.VehicleType,
+		&i.Vehicle,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -94,8 +94,8 @@ const getVehiclesByCustomerID = `-- name: GetVehiclesByCustomerID :many
 SELECT
     v.id,
     v.customer_id,
-    v.reg_no,
-    v.vehicle_type,
+    UPPER(v.reg_no) AS reg_no,
+    v.vehicle,
     v.created_at
 FROM vehicles v
 JOIN customers c ON c.id = v.customer_id
@@ -106,11 +106,11 @@ ORDER BY v.id
 `
 
 type GetVehiclesByCustomerIDRow struct {
-	ID          int32
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
-	CreatedAt   pgtype.Timestamp
+	ID         int32
+	CustomerID int32
+	RegNo      interface{}
+	Vehicle    string
+	CreatedAt  pgtype.Timestamp
 }
 
 func (q *Queries) GetVehiclesByCustomerID(ctx context.Context, customerID int32) ([]GetVehiclesByCustomerIDRow, error) {
@@ -126,7 +126,7 @@ func (q *Queries) GetVehiclesByCustomerID(ctx context.Context, customerID int32)
 			&i.ID,
 			&i.CustomerID,
 			&i.RegNo,
-			&i.VehicleType,
+			&i.Vehicle,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -143,8 +143,8 @@ const listVehicles = `-- name: ListVehicles :many
 SELECT
     v.id,
     v.customer_id,
-    v.reg_no,
-    v.vehicle_type,
+    UPPER(v.reg_no) AS reg_no,
+    v.vehicle,
     v.created_at,
     c.name AS customer_name
 FROM vehicles v
@@ -157,8 +157,8 @@ ORDER BY v.id
 type ListVehiclesRow struct {
 	ID           int32
 	CustomerID   int32
-	RegNo        string
-	VehicleType  string
+	RegNo        interface{}
+	Vehicle      string
 	CreatedAt    pgtype.Timestamp
 	CustomerName string
 }
@@ -176,7 +176,7 @@ func (q *Queries) ListVehicles(ctx context.Context) ([]ListVehiclesRow, error) {
 			&i.ID,
 			&i.CustomerID,
 			&i.RegNo,
-			&i.VehicleType,
+			&i.Vehicle,
 			&i.CreatedAt,
 			&i.CustomerName,
 		); err != nil {
@@ -195,32 +195,32 @@ UPDATE vehicles
 SET
     customer_id = $1,
     reg_no = $2,
-    vehicle_type = $3
+    vehicle = $3
 WHERE id = $4
   AND deleted_at IS NULL
-RETURNING id, customer_id, reg_no, vehicle_type, created_at
+RETURNING id, customer_id, UPPER(reg_no) AS reg_no, vehicle, created_at
 `
 
 type UpdateVehicleParams struct {
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
-	ID          int32
+	CustomerID int32
+	RegNo      string
+	Vehicle    string
+	ID         int32
 }
 
 type UpdateVehicleRow struct {
-	ID          int32
-	CustomerID  int32
-	RegNo       string
-	VehicleType string
-	CreatedAt   pgtype.Timestamp
+	ID         int32
+	CustomerID int32
+	RegNo      interface{}
+	Vehicle    string
+	CreatedAt  pgtype.Timestamp
 }
 
 func (q *Queries) UpdateVehicle(ctx context.Context, arg UpdateVehicleParams) (UpdateVehicleRow, error) {
 	row := q.db.QueryRow(ctx, updateVehicle,
 		arg.CustomerID,
 		arg.RegNo,
-		arg.VehicleType,
+		arg.Vehicle,
 		arg.ID,
 	)
 	var i UpdateVehicleRow
@@ -228,7 +228,7 @@ func (q *Queries) UpdateVehicle(ctx context.Context, arg UpdateVehicleParams) (U
 		&i.ID,
 		&i.CustomerID,
 		&i.RegNo,
-		&i.VehicleType,
+		&i.Vehicle,
 		&i.CreatedAt,
 	)
 	return i, err

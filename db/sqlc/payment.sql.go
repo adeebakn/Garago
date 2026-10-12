@@ -10,13 +10,9 @@ import (
 )
 
 const createPayment = `-- name: CreatePayment :one
-INSERT INTO payments (
-    invoice_id,
-    amount,
-    payment_method
-)
+INSERT INTO payments (invoice_id, amount, payment_method)
 VALUES ($1, $2, $3)
-RETURNING id, invoice_id, amount, payment_method, payment_date
+RETURNING id, invoice_id, amount, payment_method, payment_date, deleted_at
 `
 
 type CreatePaymentParams struct {
@@ -34,24 +30,14 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.Amount,
 		&i.PaymentMethod,
 		&i.PaymentDate,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
-const deletePayment = `-- name: DeletePayment :exec
-DELETE FROM payments
-WHERE id = $1
-`
-
-func (q *Queries) DeletePayment(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deletePayment, id)
-	return err
-}
-
 const getPayment = `-- name: GetPayment :one
-SELECT id, invoice_id, amount, payment_method, payment_date
-FROM payments
-WHERE id = $1
+SELECT id, invoice_id, amount, payment_method, payment_date, deleted_at
+FROM payments WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id int32) (Payment, error) {
@@ -63,14 +49,14 @@ func (q *Queries) GetPayment(ctx context.Context, id int32) (Payment, error) {
 		&i.Amount,
 		&i.PaymentMethod,
 		&i.PaymentDate,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getPaymentsByInvoice = `-- name: GetPaymentsByInvoice :many
-SELECT id, invoice_id, amount, payment_method, payment_date
-FROM payments
-WHERE invoice_id = $1
+SELECT id, invoice_id, amount, payment_method, payment_date, deleted_at
+FROM payments WHERE invoice_id = $1 AND deleted_at IS NULL
 ORDER BY id
 `
 
@@ -89,6 +75,7 @@ func (q *Queries) GetPaymentsByInvoice(ctx context.Context, invoiceID int32) ([]
 			&i.Amount,
 			&i.PaymentMethod,
 			&i.PaymentDate,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -101,8 +88,9 @@ func (q *Queries) GetPaymentsByInvoice(ctx context.Context, invoiceID int32) ([]
 }
 
 const getTotalRevenue = `-- name: GetTotalRevenue :one
-SELECT COALESCE(SUM(amount), 0)
-FROM payments
+SELECT COALESCE(SUM(p.amount), 0)
+FROM payments p JOIN invoices i ON i.id = p.invoice_id
+WHERE p.deleted_at IS NULL AND i.deleted_at IS NULL
 `
 
 func (q *Queries) GetTotalRevenue(ctx context.Context) (interface{}, error) {
@@ -113,9 +101,10 @@ func (q *Queries) GetTotalRevenue(ctx context.Context) (interface{}, error) {
 }
 
 const listPayments = `-- name: ListPayments :many
-SELECT id, invoice_id, amount, payment_method, payment_date
-FROM payments
-ORDER BY id
+SELECT p.id, p.invoice_id, p.amount, p.payment_method, p.payment_date, p.deleted_at
+FROM payments p JOIN invoices i ON i.id = p.invoice_id
+WHERE p.deleted_at IS NULL AND i.deleted_at IS NULL
+ORDER BY p.id
 `
 
 func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
@@ -133,6 +122,7 @@ func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
 			&i.Amount,
 			&i.PaymentMethod,
 			&i.PaymentDate,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -142,4 +132,17 @@ func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const softDeletePayment = `-- name: SoftDeletePayment :execrows
+UPDATE payments SET deleted_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeletePayment(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, softDeletePayment, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
